@@ -2,15 +2,22 @@ use std::iter;
 
 use winit::{
     event::*,
+    event_loop::EventLoop,
     window::Window,
 };
+
 
 use super::ping_pong_texture::PingPongTexture;
 
 mod simulation_data;
 use simulation_data::SimulationData;
 
+mod gui_render_wgpu;
+use gui_render_wgpu::{Gui, GuiRenderWgpu, ScreenDescriptor};
+
 pub struct State {
+    scale_factor: f64,
+    window_id: winit::window::WindowId,
     surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -23,12 +30,17 @@ pub struct State {
     simulation_textures: PingPongTexture,
     simulation_uniforms: SimulationData,
     init: bool,
+
+    gui: Gui,
+    gui_render: GuiRenderWgpu,
+    demo_app: egui_demo_lib::WrapApp
 }
 
 impl State {
-    pub async fn new(window: &Window, simulation_size: [u32; 2]) -> Self {
+    pub async fn new(window: &Window, event_loop: &EventLoop<()>, simulation_size: [u32; 2]) -> State {
         let size = window.inner_size();
-
+        let scale_factor =  window.scale_factor();
+        
         let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
         let surface = unsafe { instance.create_surface(&window) };
         let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions {
@@ -48,9 +60,10 @@ impl State {
         )
         .await.unwrap();
         
+        let surface_format = surface.get_preferred_format(&adapter).unwrap();
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_preferred_format(&adapter).unwrap(),
+            format: surface_format,
             width: size.width,
             height: size.height,
             // FIFO, will cap the display rate at the displays framerate. This is essentially VSync.
@@ -59,6 +72,21 @@ impl State {
         };
         surface.configure(&device, &config);
         
+        let screen_descriptor = ScreenDescriptor {
+            width: size.width,
+            height: size.height,
+            scale_factor: scale_factor as f32,
+        };
+
+        let mut gui = Gui::new(screen_descriptor);
+
+        let gui_render = GuiRenderWgpu::new(&device, config.format, 1);
+
+        // Display the demo application that ships with egui.
+        let demo_app = egui_demo_lib::WrapApp::default();
+        
+   
+
         // Texture
         let texture_desc = wgpu::TextureDescriptor {
             size: wgpu::Extent3d {
@@ -190,8 +218,10 @@ impl State {
             multisample: multisample_state,
             multiview: None,
         });
-        
+
         Self {
+            scale_factor,
+            window_id: window.id(),
             surface,
             device,
             queue,
@@ -204,10 +234,17 @@ impl State {
             simulation_textures,
             simulation_uniforms,
             init: false,
+
+            gui,
+            gui_render,
+            demo_app,
         }
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+        // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
+        // See: https://github.com/rust-windowing/winit/issues/208
+        // This solves an issue where the app would panic when minimizing on Windows.
         if new_size.width > 0 && new_size.height > 0 {
             self.size = new_size;
             self.config.width = new_size.width;
@@ -216,29 +253,35 @@ impl State {
         }
     }
 
-    pub fn input(&mut self, event: &WindowEvent) -> bool {
-        
+    pub fn input(&mut self, event: &Event<()>) {
+        self.gui.handle_event(event);
         match event {
-            WindowEvent::CursorMoved { position, .. } => {
-                self.clear_color = wgpu::Color {
-                    r: position.x as f64 / self.size.width as f64,
-                    g: position.y as f64 / self.size.height as f64,
-                    b: 1.0,
-                    a: 1.0,
-                };
-                true
+            Event::WindowEvent {
+                ref event,
+                window_id,
+            } if window_id == &self.window_id => {
+                match event {
+                    WindowEvent::CursorMoved { position, .. } => {
+                        self.clear_color = wgpu::Color {
+                            r: position.x as f64 / self.size.width as f64,
+                            g: position.y as f64 / self.size.height as f64,
+                            b: 1.0,
+                            a: 1.0,
+                        };
+                    }
+                    WindowEvent::MouseWheel { delta: MouseScrollDelta::LineDelta(_, y), .. } => {
+                        println!("ScrollDelta {}", y);
+                    }
+                    _ => {}
+                }
             }
-            WindowEvent::MouseWheel { delta: MouseScrollDelta::LineDelta(_, y), .. } => {
-                println!("ScrollDelta {}", y);
-                true
-            }
-            _ => false,
+            _ => {}
         }
     }
 
     pub fn update(&mut self) {}
 
-    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, window: &winit::window::Window) -> Result<(), wgpu::SurfaceError> {
         let output: wgpu::SurfaceTexture = self.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
@@ -246,6 +289,7 @@ impl State {
             label: Some("Render Encoder"),
         });
         
+    
         // init if needed
         if self.init == false {
             self.init = true;
@@ -314,6 +358,81 @@ impl State {
             screen_render_pass.draw(0..3, 0..1);
         }
         
+
+        // UI
+        // Begin to draw the UI frame.        
+        let _frame_data = self.gui.start_frame(window.scale_factor() as _);
+        let context = self.gui.context();
+        let ctx = &context;
+
+        egui::TopBottomPanel::top("top_panel")
+            .resizable(true)
+            .show(ctx, |ui| {
+                egui::menu::bar(ui, |ui| {
+                    ui.menu_button("File", |ui| {
+                        if ui.button("Open").clicked() {
+                            // …
+                        }
+                        if ui.button("Quit").clicked() {
+                            // TODO exit
+                        }
+                    });
+                });
+
+            });
+
+        egui::SidePanel::left("left_panel")
+            .resizable(true)
+            .show(ctx, |ui| {
+                ui.heading("Left Panel");
+                ui.allocate_space(ui.available_size());
+            });
+
+        egui::SidePanel::right("right_panel")
+            .resizable(true)
+            .show(ctx, |ui| {
+                ui.heading("Right Panel");
+                ui.allocate_space(ui.available_size());
+            });
+
+        egui::TopBottomPanel::bottom("bottom_panel")
+            .resizable(true)
+            .show(ctx, |ui| {
+                ui.heading("Bottom Panel");
+                ui.allocate_space(ui.available_size());
+            });
+
+        // Calculate the rect needed for rendering
+        let viewport = egui::Ui::new(
+            ctx.clone(),
+            egui::LayerId::background(),
+            egui::Id::new("central_panel"),
+            ctx.available_rect(),
+            ctx.input().screen_rect(),
+        )
+        .max_rect();
+
+        let ui_meshes = self.gui.end_frame(&window);
+
+        encoder.insert_debug_marker("Render GUI");
+
+        let screen_descriptor = ScreenDescriptor {
+            width: self.size.width,
+            height: self.size.height,
+            scale_factor: window.scale_factor() as _,
+        };
+
+        self.gui_render.render(
+            context,
+            &self.device,
+            &self.queue,
+            &screen_descriptor,
+            &mut encoder,
+            &view,
+            &ui_meshes,
+        )
+        .expect("Failed to execute gui render pass!");
+
         // submit will accept anything that implements IntoIter
         self.queue.submit(iter::once(encoder.finish()));
         output.present();
