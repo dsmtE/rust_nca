@@ -6,32 +6,7 @@ use std::{sync::Arc, time::Instant};
 use wgpu::CommandEncoder;
 use winit::{event::Event, window::Window};
 
-pub struct ScreenDescriptor {
-    pub width: u32,
-    pub height: u32,
-    pub scale_factor: f32,
-}
-
-impl Into<egui_wgpu_backend::ScreenDescriptor> for &ScreenDescriptor {
-    fn into(self) -> egui_wgpu_backend::ScreenDescriptor {
-        egui_wgpu_backend::ScreenDescriptor {
-            physical_width: self.width,
-            physical_height: self.height,
-            scale_factor: self.scale_factor,
-        }
-    }
-}
-
-// impl Into<ScreenDescriptor> for &egui_wgpu_backend::ScreenDescriptor {
-//     fn into(self) -> ScreenDescriptor {
-//         ScreenDescriptor {
-//             width: self.physical_width,
-//             height: self.physical_height,
-//             scale_factor: self.scale_factor,
-//         }
-//     }
-// }
-
+pub use egui_wgpu_backend::ScreenDescriptor as ScreenDescriptor;
 
 // We repaint the UI every frame, so no custom repaint signal is needed
 struct RepaintSignal;
@@ -51,9 +26,9 @@ impl Gui {
     pub fn new(screen_descriptor: ScreenDescriptor) -> Self {
         // We use the egui_winit_platform crate as the platform.
         let platform = Platform::new(PlatformDescriptor {
-            physical_width: screen_descriptor.width,
-            physical_height: screen_descriptor.height,
-            scale_factor: screen_descriptor.scale_factor as _,
+            physical_width: screen_descriptor.physical_width,
+            physical_height: screen_descriptor.physical_height,
+            scale_factor: screen_descriptor.scale_factor as f64,
             font_definitions: egui::FontDefinitions::default(),
             style: Default::default(),
         });
@@ -132,8 +107,6 @@ impl GuiRenderWgpu {
         self.renderpass.update_texture(&device, &queue, &context.font_image());
 
         self.renderpass.update_user_textures(&device, &queue);
-
-        let screen_descriptor: egui_wgpu_backend::ScreenDescriptor = screen_descriptor.into();
 
         self.renderpass.update_buffers(&device, &queue, &paint_jobs, &screen_descriptor);
 

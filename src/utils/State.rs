@@ -88,8 +88,8 @@ impl State {
         surface.configure(&device, &config);
         
         let mut gui = Gui::new(ScreenDescriptor {
-            width: size.width,
-            height: size.height,
+            physical_width: size.width,
+            physical_height: size.height,
             scale_factor: scale_factor as f32,
         });
 
@@ -456,17 +456,17 @@ impl State {
         // draw UI
         encoder.insert_debug_marker("Render GUI");
 
-        let screen_descriptor = ScreenDescriptor {
-            width: self.size.width,
-            height: self.size.height,
-            scale_factor: window_scale_factor,
-         };
+        let screen_descriptor = 
 
          self.gui_render.render(
              self.gui.context(),
              &self.device,
              &self.queue,
-             &screen_descriptor,
+             &ScreenDescriptor {
+                 physical_width: self.size.width,
+                 physical_height: self.size.height,
+                scale_factor: window_scale_factor,
+             },
              &mut encoder,
              &view,
              &ui_meshes,
@@ -508,7 +508,6 @@ impl State {
             screen_render_pass.set_bind_group(0, bind_group, &[]);
             screen_render_pass.draw(0..3, 0..1);
         }
-
        
         // */
 
