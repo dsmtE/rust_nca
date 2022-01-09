@@ -6,7 +6,6 @@ use winit::{
     window::Window,
 };
 
-
 use super::ping_pong_texture::PingPongTexture;
 
 mod simulation_data;
@@ -40,6 +39,11 @@ pub struct State {
     simulation_textures: PingPongTexture,
     simulation_uniforms: SimulationData,
     init: bool,
+
+    bind_group_display_ping : wgpu::BindGroup,
+    bind_group_display_pong: wgpu::BindGroup,
+    bind_group_simulation_ping: wgpu::BindGroup,
+    bind_group_simulation_pong: wgpu::BindGroup,
 
     gui: Gui,
     gui_render: GuiRenderWgpu,
@@ -122,6 +126,33 @@ impl State {
          
         let simulation_uniforms = SimulationData::new(&device, &simulation_size);
         
+        let simulation_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            lod_min_clamp: 0.0,
+            lod_max_clamp: 0.0,
+            ..Default::default()
+        });
+
+        let display_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            lod_min_clamp: 0.0,
+            lod_max_clamp: 0.0,
+            ..Default::default()
+        });
+
+        let (bind_group_display_ping, bind_group_display_pong) = simulation_textures.create_binding_group(&device, &display_sampler);
+        let (bind_group_simulation_ping, bind_group_simulation_pong) = simulation_textures.create_binding_group(&device, &simulation_sampler);
+
         // Shaders
         let screen_shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("Screne Shader"),
@@ -249,7 +280,11 @@ impl State {
             simulation_textures,
             simulation_uniforms,
             init: false,
-
+            
+            bind_group_display_ping,
+            bind_group_display_pong,
+            bind_group_simulation_ping,
+            bind_group_simulation_pong,
             gui,
             gui_render,
             demo_app,
@@ -412,7 +447,8 @@ impl State {
             });
             
             simulation_render_pass.set_pipeline(&self.simulation_render_pipeline);
-            simulation_render_pass.set_bind_group(0, self.simulation_textures.get_rendered_bind_group(), &[]);
+            let bind_group: &wgpu::BindGroup = if self.simulation_textures.state { &self.bind_group_simulation_pong } else { &self.bind_group_simulation_ping };
+            simulation_render_pass.set_bind_group(0, bind_group, &[]);
             simulation_render_pass.set_bind_group(1, &self.simulation_uniforms.bind_group, &[]);
             simulation_render_pass.draw(0..3, 0..1);
         }
@@ -455,6 +491,7 @@ impl State {
             
             // update viewport accordingly to the Ui to display the simulation
             // it must be multiplied by window scale factor as render pass use physical pixels screen size
+            
             screen_render_pass.set_viewport(
                 self.ui_central_viewport.x * window_scale_factor,
                 self.ui_central_viewport.y * window_scale_factor,
@@ -465,7 +502,8 @@ impl State {
             );
 
             screen_render_pass.set_pipeline(&self.screen_render_pipeline);
-            screen_render_pass.set_bind_group(0, self.simulation_textures.get_target_bind_group(), &[]); // NEW!
+            let bind_group: &wgpu::BindGroup = if self.simulation_textures.state { &self.bind_group_display_ping } else { &self.bind_group_display_pong };
+            screen_render_pass.set_bind_group(0, bind_group, &[]);
             screen_render_pass.draw(0..3, 0..1);
         }
 
