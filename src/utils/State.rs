@@ -502,7 +502,9 @@ impl State {
             );
 
             screen_render_pass.set_pipeline(&self.screen_render_pipeline);
-            let bind_group: &wgpu::BindGroup = if self.simulation_textures.state { &self.bind_group_display_ping } else { &self.bind_group_display_pong };
+            // let bind_group: &wgpu::BindGroup = if self.simulation_textures.state { &self.bind_group_display_ping } else { &self.bind_group_display_pong };
+            // TODO: why it's blinking on switch bindgroup ?
+            let bind_group: &wgpu::BindGroup = &self.bind_group_display_ping;
             screen_render_pass.set_bind_group(0, bind_group, &[]);
             screen_render_pass.draw(0..3, 0..1);
         }
