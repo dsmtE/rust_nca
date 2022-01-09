@@ -15,8 +15,18 @@ use simulation_data::SimulationData;
 mod gui_render_wgpu;
 use gui_render_wgpu::{Gui, GuiRenderWgpu, ScreenDescriptor};
 
+#[derive(Default)]
+pub struct Viewport {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    pub min_depth: f32,
+    pub max_depth: f32,
+}
+
+
 pub struct State {
-    scale_factor: f64,
     window_id: winit::window::WindowId,
     surface: wgpu::Surface,
     device: wgpu::Device,
@@ -33,7 +43,8 @@ pub struct State {
 
     gui: Gui,
     gui_render: GuiRenderWgpu,
-    demo_app: egui_demo_lib::WrapApp
+    demo_app: egui_demo_lib::WrapApp,
+    ui_central_viewport: Viewport,
 }
 
 impl State {
@@ -72,20 +83,25 @@ impl State {
         };
         surface.configure(&device, &config);
         
-        let screen_descriptor = ScreenDescriptor {
+        let mut gui = Gui::new(ScreenDescriptor {
             width: size.width,
             height: size.height,
             scale_factor: scale_factor as f32,
-        };
-
-        let mut gui = Gui::new(screen_descriptor);
+        });
 
         let gui_render = GuiRenderWgpu::new(&device, config.format, 1);
 
         // Display the demo application that ships with egui.
         let demo_app = egui_demo_lib::WrapApp::default();
         
-   
+        let ui_central_viewport = Viewport {
+            x: 0.0,
+            y: 0.0,
+            width: size.width as f32,
+            height: size.height as f32,
+            min_depth: 0.0,
+            max_depth: 1.0,
+        };
 
         // Texture
         let texture_desc = wgpu::TextureDescriptor {
@@ -220,7 +236,6 @@ impl State {
         });
 
         Self {
-            scale_factor,
             window_id: window.id(),
             surface,
             device,
@@ -238,6 +253,7 @@ impl State {
             gui,
             gui_render,
             demo_app,
+            ui_central_viewport,
         }
     }
 
@@ -281,15 +297,80 @@ impl State {
 
     pub fn update(&mut self) {}
 
+    pub fn render_ui_meshs(&mut self, window: &winit::window::Window) -> Vec<egui::ClippedMesh> {
+        // Begin to draw the UI frame.
+        let _frame_data = self.gui.start_frame(window.scale_factor() as _);
+        let ctx = &self.gui.context();
+        
+        egui::TopBottomPanel::top("top_panel")
+            .resizable(true)
+            .show(ctx, |ui| {
+                egui::menu::bar(ui, |ui| {
+                    ui.menu_button("File", |ui| {
+                        if ui.button("Open").clicked() {
+                            // …
+                        }
+                        if ui.button("Quit").clicked() {
+                            // TODO exit
+                        }
+                    });
+                });
+
+            });
+
+        egui::SidePanel::left("left_panel")
+            .resizable(true)
+            .show(ctx, |ui| {
+                ui.heading("Left Panel");
+                ui.allocate_space(ui.available_size());
+            });
+
+        egui::SidePanel::right("right_panel")
+            .resizable(true)
+            .show(ctx, |ui| {
+                ui.heading("Right Panel");
+                ui.allocate_space(ui.available_size());
+            });
+
+        egui::TopBottomPanel::bottom("bottom_panel")
+            .resizable(true)
+            .show(ctx, |ui| {
+                ui.heading("Bottom Panel");
+                
+                ui.allocate_space(ui.available_size());
+            });
+
+
+        // Create manually virtual center panel to get rect used as viewport afterward
+        let mut center_ui_panel_viewport = egui::Ui::new(
+            ctx.clone(),
+            egui::LayerId::background(),
+            egui::Id::new("central_panel"),
+            ctx.available_rect(),
+            ctx.input().screen_rect()
+        ).max_rect();
+
+        // update ui_central_viewport
+        let center_size = center_ui_panel_viewport.max - center_ui_panel_viewport.min;
+        self.ui_central_viewport.x = center_ui_panel_viewport.min.x;
+        self.ui_central_viewport.y = center_ui_panel_viewport.min.y;
+        self.ui_central_viewport.width = center_size.x;
+        self.ui_central_viewport.height = center_size.y;
+        
+        return self.gui.end_frame(window);
+    }
+
     pub fn render(&mut self, window: &winit::window::Window) -> Result<(), wgpu::SurfaceError> {
         let output: wgpu::SurfaceTexture = self.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let window_scale_factor = window.scale_factor() as f32;
 
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Render Encoder"),
         });
-        
-    
+
+        let ui_meshes = self.render_ui_meshs(window);
+
         // init if needed
         if self.init == false {
             self.init = true;
@@ -335,8 +416,27 @@ impl State {
             simulation_render_pass.set_bind_group(1, &self.simulation_uniforms.bind_group, &[]);
             simulation_render_pass.draw(0..3, 0..1);
         }
-    
-        // render on screen
+        
+        // draw UI
+        encoder.insert_debug_marker("Render GUI");
+
+        let screen_descriptor = ScreenDescriptor {
+            width: self.size.width,
+            height: self.size.height,
+            scale_factor: window_scale_factor,
+         };
+
+         self.gui_render.render(
+             self.gui.context(),
+             &self.device,
+             &self.queue,
+             &screen_descriptor,
+             &mut encoder,
+             &view,
+             &ui_meshes,
+         ).expect("Failed to execute gui render pass!");
+
+        // render simulation on screen
         {
             let mut screen_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Screen Render Pass"),
@@ -346,92 +446,31 @@ impl State {
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(self.clear_color),
+                        load: wgpu::LoadOp::Load,
                         store: true,
                     },
                 }],
                 depth_stencil_attachment: None,
             });
+            
+            // update viewport accordingly to the Ui to display the simulation
+            // it must be multiplied by window scale factor as render pass use physical pixels screen size
+            screen_render_pass.set_viewport(
+                self.ui_central_viewport.x * window_scale_factor,
+                self.ui_central_viewport.y * window_scale_factor,
+                self.ui_central_viewport.width * window_scale_factor,
+                self.ui_central_viewport.height * window_scale_factor,
+                self.ui_central_viewport.min_depth,
+                self.ui_central_viewport.max_depth,
+            );
 
             screen_render_pass.set_pipeline(&self.screen_render_pipeline);
             screen_render_pass.set_bind_group(0, self.simulation_textures.get_target_bind_group(), &[]); // NEW!
             screen_render_pass.draw(0..3, 0..1);
         }
-        
 
-        // UI
-        // Begin to draw the UI frame.        
-        let _frame_data = self.gui.start_frame(window.scale_factor() as _);
-        let context = self.gui.context();
-        let ctx = &context;
-
-        egui::TopBottomPanel::top("top_panel")
-            .resizable(true)
-            .show(ctx, |ui| {
-                egui::menu::bar(ui, |ui| {
-                    ui.menu_button("File", |ui| {
-                        if ui.button("Open").clicked() {
-                            // …
-                        }
-                        if ui.button("Quit").clicked() {
-                            // TODO exit
-                        }
-                    });
-                });
-
-            });
-
-        egui::SidePanel::left("left_panel")
-            .resizable(true)
-            .show(ctx, |ui| {
-                ui.heading("Left Panel");
-                ui.allocate_space(ui.available_size());
-            });
-
-        egui::SidePanel::right("right_panel")
-            .resizable(true)
-            .show(ctx, |ui| {
-                ui.heading("Right Panel");
-                ui.allocate_space(ui.available_size());
-            });
-
-        egui::TopBottomPanel::bottom("bottom_panel")
-            .resizable(true)
-            .show(ctx, |ui| {
-                ui.heading("Bottom Panel");
-                ui.allocate_space(ui.available_size());
-            });
-
-        // Calculate the rect needed for rendering
-        let viewport = egui::Ui::new(
-            ctx.clone(),
-            egui::LayerId::background(),
-            egui::Id::new("central_panel"),
-            ctx.available_rect(),
-            ctx.input().screen_rect(),
-        )
-        .max_rect();
-
-        let ui_meshes = self.gui.end_frame(&window);
-
-        encoder.insert_debug_marker("Render GUI");
-
-        let screen_descriptor = ScreenDescriptor {
-            width: self.size.width,
-            height: self.size.height,
-            scale_factor: window.scale_factor() as _,
-        };
-
-        self.gui_render.render(
-            context,
-            &self.device,
-            &self.queue,
-            &screen_descriptor,
-            &mut encoder,
-            &view,
-            &ui_meshes,
-        )
-        .expect("Failed to execute gui render pass!");
+       
+        // */
 
         // submit will accept anything that implements IntoIter
         self.queue.submit(iter::once(encoder.finish()));
