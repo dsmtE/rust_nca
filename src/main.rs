@@ -1,18 +1,23 @@
 use winit::{
     event::*,
-    
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
 
-use std::time::Instant;
+use std::{
+    time::{Instant, Duration},
+    thread,
+    sync::mpsc
+};
 
 mod utils;
 use utils::state::State;
 
-
 fn main() {
 
+    let wanted_fps: u64 = 30;
+
+    let (tx, rx): (_, mpsc::Receiver<bool>) = mpsc::channel();
     env_logger::init();
     let event_loop = EventLoop::new();
     // let event_loop = winit::event_loop::EventLoop::with_user_event();
@@ -23,11 +28,11 @@ fn main() {
         .with_title("rust NCA")
         .build(&event_loop).unwrap();
 
-
     // State::new uses async code, so we're going to wait for it to finish
     let mut state = pollster::block_on(State::new(&window, &event_loop, [400, 400]));
-    
-    let start_time = Instant::now();
+    let mut draw_requested = false;
+
+    let mut previous_time = Instant::now();
     event_loop.run(move |event, _, control_flow| {
         state.input(&event);
         match event {
@@ -66,10 +71,33 @@ fn main() {
                     Err(e) => eprintln!("{:?}", e),
                 }
             }
+
             Event::MainEventsCleared => {
                 // RedrawRequested will only trigger once, unless we manually
                 // request it.
-                window.request_redraw();
+                // window.request_redraw();
+                if !draw_requested {
+                    let current_time = Instant::now();
+                    let elapsed_time = current_time - previous_time;
+                    let fps_duration = Duration::from_millis((1.0/(wanted_fps as f32) * 1000.0) as _);
+                    let sleeping_time = if elapsed_time < fps_duration {fps_duration - elapsed_time} else {Duration::from_secs(0)};
+                    let tx_clone = tx.clone();
+                    thread::spawn(move || {
+                        thread::sleep(sleeping_time);
+                        tx_clone.send(true).unwrap();
+                    });
+                    previous_time = current_time;
+                    draw_requested = true;
+
+                }else {
+                    thread::sleep(Duration::from_millis(1)); // avoid using cpu 100%
+                    if let Ok(_) = rx.try_recv() {
+                        draw_requested = false;
+                        window.request_redraw();
+                    }
+                }
+                
+                // println!("loop"); 
             }
             _ => {}
         }

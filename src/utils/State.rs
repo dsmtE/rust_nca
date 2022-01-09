@@ -83,7 +83,7 @@ impl State {
             height: size.height,
             // FIFO, will cap the display rate at the displays framerate. This is essentially VSync.
             // https://docs.rs/wgpu/0.10.1/wgpu/enum.PresentMode.html
-            present_mode: wgpu::PresentMode::Fifo,
+            present_mode: wgpu::PresentMode::Mailbox,
         };
         surface.configure(&device, &config);
         
@@ -429,7 +429,7 @@ impl State {
                 init_simulation_render_pass.draw(0..3, 0..1);
             }
         }
-            
+
         // simulation
         {
             let mut simulation_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
