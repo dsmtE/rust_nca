@@ -10,15 +10,29 @@ use std::{
     sync::mpsc
 };
 
+use std::process;
+
+use log::LevelFilter;
+
 mod utils;
 use utils::state::State;
+use utils::logger::ConsoleLogger;
 
 fn main() {
+
+    ConsoleLogger::init().unwrap();
+
+    log::set_max_level(LevelFilter::Trace);
+
+    log::error!("error message");
+    log::warn!("warn message");
+    log::info!("info message");
+    log::debug!("debug message");
+    log::trace!("trace message");
 
     let wanted_fps: u64 = 30;
 
     let (tx, rx): (_, mpsc::Receiver<bool>) = mpsc::channel();
-    env_logger::init();
     let event_loop = EventLoop::new();
     // let event_loop = winit::event_loop::EventLoop::with_user_event();
     let window = WindowBuilder::new()
