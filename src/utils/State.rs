@@ -14,6 +14,8 @@ use simulation_data::SimulationData;
 mod gui_render_wgpu;
 use gui_render_wgpu::{Gui, GuiRenderWgpu, ScreenDescriptor};
 
+use super::logger::FilteringMask;
+
 #[derive(Default)]
 pub struct Viewport {
     pub x: f32,
@@ -23,7 +25,6 @@ pub struct Viewport {
     pub min_depth: f32,
     pub max_depth: f32,
 }
-
 
 pub struct State {
     window_id: winit::window::WindowId,
@@ -49,6 +50,7 @@ pub struct State {
     gui_render: GuiRenderWgpu,
     demo_app: egui_demo_lib::WrapApp,
     ui_central_viewport: Viewport,
+    filtering_mask: FilteringMask
 }
 
 impl State {
@@ -289,6 +291,7 @@ impl State {
             gui_render,
             demo_app,
             ui_central_viewport,
+            filtering_mask:  FilteringMask::Debug,
         }
     }
 
@@ -337,6 +340,8 @@ impl State {
         let _frame_data = self.gui.start_frame(window.scale_factor() as _);
         let ctx = &self.gui.context();
         
+        ctx.set_debug_on_hover(true);
+
         egui::TopBottomPanel::top("top_panel")
             .resizable(true)
             .show(ctx, |ui| {
@@ -360,20 +365,76 @@ impl State {
                 ui.allocate_space(ui.available_size());
             });
 
-        egui::SidePanel::right("right_panel")
-            .resizable(true)
-            .show(ctx, |ui| {
-                ui.heading("Right Panel");
                 ui.allocate_space(ui.available_size());
             });
 
         egui::TopBottomPanel::bottom("bottom_panel")
-            .resizable(true)
-            .show(ctx, |ui| {
-                ui.heading("Bottom Panel");
-                
-                ui.allocate_space(ui.available_size());
+        .resizable(false)
+        .max_height(300.0)
+        .show(ctx, |ui| {
+            ui.heading("Console");
+            ui.separator();
+            
+            let text_style = egui::TextStyle::Body;
+            let row_height = ui.fonts()[text_style].row_height();
+            // let row_height = ui.spacing().interact_size.y; // if you are adding buttons instead of labels.
+            let num_rows = 50;
+            // egui::ScrollArea::vertical().show_rows(ui, row_height, num_rows, |ui, row_range| {
+            //     for row in row_range {
+            //         let text = format!("Row {}/{}", row + 1, num_rows);
+            //         ui.label(text);
+            //     }
+            // });
+
+            
+            
+            ui.horizontal(|ui| {
+                ui.radio_value(&mut self.filtering_mask, FilteringMask::Error, "Error");
+                ui.radio_value(&mut self.filtering_mask, FilteringMask::Warn, "Warn");
+                ui.radio_value(&mut self.filtering_mask, FilteringMask::Info, "Info");
+                ui.radio_value(&mut self.filtering_mask, FilteringMask::Trace, "Trace");
+                ui.radio_value(&mut self.filtering_mask, FilteringMask::Debug, "Debug");
             });
+            
+            ui.separator();
+
+            // ui.with_layout(egui::Layout::from_main_dir_and_cross_align(egui::Direction::TopDown, egui::Align::Min), |ui| {
+            //     for item in 1..=20 {
+            //         ui.label(format!("This is item {}", item));
+            //     }
+            // });
+            egui::ScrollArea::vertical().max_height(200.0).auto_shrink([false; 2]).stick_to_bottom().show_rows(ui, row_height, num_rows, |ui, row_range| {
+                for row in row_range {
+                    let text = format!("Row {}/{}", row + 1, num_rows);
+                    ui.label(text);
+                }
+            });
+
+            // ui.with_layout(egui::Layout::from_main_dir_and_cross_align(egui::Direction::TopDown, egui::Align::Left), |ui| {
+
+                    
+            //         ui.separator();
+                    
+            //         // .stick_to_bottom()
+            //         // egui::ScrollArea::vertical().max_height(100.0).auto_shrink([true; 2]).show(ui, |ui| {
+            //         //     // ui.with_layout(
+            //         //     //     egui::Layout::top_down(egui::Align::Center).with_cross_justify(true),
+            //         //     //     |ui| {
+            //         //     //         ui.label(egui::RichText::new("a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\nq\nr\ns\nt\nu\nv\nw\nx\ny\nz\n").small().weak());
+            //         //     //     },
+            //         //     // );
+            //         //     ui.vertical(|ui| {
+            //         //         for item in 1..=20 {
+            //         //             ui.label(format!("This is item {}", item));
+            //         //         }
+            //         //     });
+            //         // });
+            //     },
+            // );
+                
+            ui.allocate_space(ui.available_size());
+
+        });
 
 
         // Create manually virtual center panel to get rect used as viewport afterward
