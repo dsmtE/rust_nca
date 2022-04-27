@@ -10,12 +10,10 @@ use std::{
     sync::mpsc
 };
 
-use std::process;
-
 use log::LevelFilter;
 
 mod utils;
-use utils::state::State;
+use utils::appState::State;
 use utils::logger::ConsoleLogger;
 
 fn main() {

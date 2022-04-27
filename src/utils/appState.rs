@@ -8,10 +8,8 @@ use winit::{
 
 use super::ping_pong_texture::PingPongTexture;
 
-mod simulation_data;
 use simulation_data::SimulationData;
 
-mod gui_render_wgpu;
 use gui_render_wgpu::{Gui, GuiRenderWgpu, ScreenDescriptor};
 
 #[derive(Default)]
@@ -87,7 +85,7 @@ impl State {
         };
         surface.configure(&device, &config);
         
-        let mut gui = Gui::new(ScreenDescriptor {
+        let gui = Gui::new(ScreenDescriptor {
             physical_width: size.width,
             physical_height: size.height,
             scale_factor: scale_factor as f32,
@@ -377,7 +375,7 @@ impl State {
 
 
         // Create manually virtual center panel to get rect used as viewport afterward
-        let mut center_ui_panel_viewport = egui::Ui::new(
+        let center_ui_panel_viewport = egui::Ui::new(
             ctx.clone(),
             egui::LayerId::background(),
             egui::Id::new("central_panel"),
@@ -456,9 +454,7 @@ impl State {
         // draw UI
         encoder.insert_debug_marker("Render GUI");
 
-        let screen_descriptor = 
-
-         self.gui_render.render(
+        self.gui_render.render(
              self.gui.context(),
              &self.device,
              &self.queue,
@@ -470,7 +466,7 @@ impl State {
              &mut encoder,
              &view,
              &ui_meshes,
-         ).expect("Failed to execute gui render pass!");
+        ).expect("Failed to execute gui render pass!");
 
         // render simulation on screen
         {
