@@ -6,11 +6,11 @@ use winit::{
     window::Window,
 };
 
-use super::ping_pong_texture::PingPongTexture;
-
-use simulation_data::SimulationData;
-
-use gui_render_wgpu::{Gui, GuiRenderWgpu, ScreenDescriptor};
+use crate::{
+    gui_render_wgpu::{Gui, GuiRenderWgpu, ScreenDescriptor},
+    utils::ping_pong_texture::PingPongTexture,
+    simulation_data::SimulationData
+};
 
 #[derive(Default)]
 pub struct Viewport {
@@ -21,7 +21,6 @@ pub struct Viewport {
     pub min_depth: f32,
     pub max_depth: f32,
 }
-
 
 pub struct State {
     window_id: winit::window::WindowId,
@@ -154,17 +153,17 @@ impl State {
         // Shaders
         let screen_shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("Screne Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/Screen.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shaders/Screen.wgsl").into()),
         });
 
         let simulation_shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("Simulation Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/simulation.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shaders/simulation.wgsl").into()),
         });
 
         let init_simulation_shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("Init Simulation Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/init_simulation.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shaders/init_simulation.wgsl").into()),
         });
 
         // Pipeline

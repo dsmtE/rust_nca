@@ -13,7 +13,13 @@ use std::{
 use log::LevelFilter;
 
 mod utils;
-use utils::appState::State;
+mod appState;
+
+mod app;
+mod gui_render_wgpu;
+mod simulation_data;
+
+use appState::State;
 use utils::logger::ConsoleLogger;
 
 fn main() {
