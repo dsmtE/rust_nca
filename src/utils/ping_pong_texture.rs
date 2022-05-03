@@ -1,8 +1,8 @@
 use anyhow::Result;
 pub struct PingPongTexture {
     label: Option<&'static str>,
-    texture_ping: wgpu::Texture,
-    texture_pong: wgpu::Texture,
+    // texture_ping: wgpu::Texture,
+    // texture_pong: wgpu::Texture,
     view_ping: wgpu::TextureView,
     view_pong: wgpu::TextureView,
     pub bind_group_layout: wgpu::BindGroupLayout,
@@ -50,7 +50,7 @@ impl PingPongTexture {
             }
         );
 
-        Ok(Self { label, texture_ping, texture_pong, view_ping, view_pong, bind_group_layout, state: false })
+        Ok(Self { label, view_ping, view_pong, bind_group_layout, state: false })
     }
 
     pub fn create_binding_group(&self, device: &wgpu::Device, sampler: &wgpu::Sampler) -> (wgpu::BindGroup, wgpu::BindGroup) {

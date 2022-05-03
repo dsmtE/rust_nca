@@ -10,7 +10,7 @@ use chrono::Local;
 pub struct ConsoleLogger {
     // pub history: VecDeque<Record>
     inner: Logger,
-    level: bool,
+    // level: bool,
 }
 
 impl ConsoleLogger {
@@ -45,7 +45,7 @@ impl ConsoleLogger {
 
         ConsoleLogger {
             inner: builder.build(),
-            level: true,
+            // level: true,
             // history: VecDeque::new()
         }
     }

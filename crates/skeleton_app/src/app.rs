@@ -232,8 +232,6 @@ fn run_loop(
                 app_state.gui.end_frame(&mut app_state.window)
             };
 
-            let gui_context = &app_state.gui.context();
-            
             match render_app(app, app_state, ui_clipped_meshes) {
                 Ok(_) => {}
                 // TODO: Reconfigure the surface if lost
@@ -282,8 +280,6 @@ fn run_loop(
                 app_state.gui.end_frame(&mut app_state.window)
             };
 
-            let gui_context = &app_state.gui.context();
-            
             // TODO render ui and app
             render_app(app, app_state, ui_clipped_meshes)?;
         }
@@ -309,14 +305,14 @@ pub fn render_app(
         label: Some("Render Encoder"),
     });
 
-    app.render(app_state, &mut encoder, &view);
+    app.render(app_state, &mut encoder, &view)?;
     
     // draw UI
     encoder.insert_debug_marker("Render GUI");
 
     let window_dimensions = app_state.window.inner_size();
 
-    let screenDescriptor = ScreenDescriptor {
+    let screen_descriptor = ScreenDescriptor {
         physical_width: window_dimensions.width,
         physical_height: window_dimensions.height,
         scale_factor: app_state.window.scale_factor() as f32,
@@ -326,7 +322,7 @@ pub fn render_app(
             app_state.gui.context(),
             &app_state.device,
             &app_state.queue,
-            &screenDescriptor,
+            &screen_descriptor,
             &mut encoder,
             &view,
             &ui_clipped_meshes,

@@ -7,5 +7,5 @@ fn main() {
         is_resizable: true,
         title: "rust NCA".to_owned(),
         icon: None,
-    });
+    }).unwrap();
 }

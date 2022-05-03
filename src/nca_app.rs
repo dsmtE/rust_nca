@@ -44,7 +44,6 @@ impl App for NcaApp {
     fn create(_app_state: &mut AppState) -> Self {
         
         let size = _app_state.window.inner_size();
-        let scale_factor =  _app_state.window.scale_factor();
 
         let ui_central_viewport = Viewport {
             x: 0.0,
@@ -388,7 +387,7 @@ impl App for NcaApp {
             // update viewport accordingly to the Ui to display the simulation
             // it must be multiplied by window scale factor as render pass use physical pixels screen size
             
-            let window_scale_factor = _app_state.window.scale_factor() as f32;
+            let window_scale_factor =  _app_state.window.scale_factor() as f32;
             screen_render_pass.set_viewport(
                 self.ui_central_viewport.x * window_scale_factor,
                 self.ui_central_viewport.y * window_scale_factor,

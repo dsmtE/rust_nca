@@ -15,8 +15,8 @@ impl SimulationUniforms {
 }
 
 pub struct SimulationData {
-    uniform: SimulationUniforms,
-    buffer: wgpu::Buffer,
+    // uniform: SimulationUniforms,
+    // buffer: wgpu::Buffer,
     pub bind_group_layout: wgpu::BindGroupLayout,
     pub bind_group: wgpu::BindGroup,
 }
@@ -61,14 +61,14 @@ impl SimulationData {
         });
 
         Self {
-            uniform,
-            buffer,
+            // uniform,
+            // buffer,
             bind_group_layout,
             bind_group,
         }
     }
 
-    fn update_pixel_size(&mut self, simulation_size : &[u32; 2]) {
-        self.uniform.pixel_size = simulation_size.map(|x| 1.0 / x as f32);
-    }
+    // fn update_pixel_size(&mut self, simulation_size : &[u32; 2]) {
+    //     self.uniform.pixel_size = simulation_size.map(|x| 1.0 / x as f32);
+    // }
 }
