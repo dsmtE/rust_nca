@@ -1,19 +1,15 @@
-use winit::{
-    dpi::PhysicalSize,
-    event::{ElementState, Event, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent, MouseScrollDelta},
-    event_loop::{ControlFlow, EventLoop},
-    window::{Icon, WindowBuilder},
-};
-
-use crate::{
-    app::{App, AppState},
-    gui_render_wgpu::{Gui, GuiRenderWgpu, ScreenDescriptor},
-    utils::ping_pong_texture::PingPongTexture,
-    simulation_data::SimulationData
-};
-
 use anyhow::Result;
 
+use winit::{
+    event::{Event, WindowEvent, MouseScrollDelta},
+};
+
+use skeleton_app::{App, AppState};
+
+use rust_nca::{
+    utils::ping_pong_texture::PingPongTexture,
+    simulation_data::SimulationData,
+};
 
 #[derive(Default)]
 pub struct Viewport {
