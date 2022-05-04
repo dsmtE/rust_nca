@@ -18,6 +18,7 @@ env_logger = "0.9.0"
 chrono = "0.4.19"
 egui = "0.17.0"
 winit = "0.26.0"
+rand = "0.8.5"
 
 [[bin]]
 name = "rust_nca"

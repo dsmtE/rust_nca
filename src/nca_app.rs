@@ -9,7 +9,7 @@ use skeleton_app::{App, AppState};
 
 use crate::{
     utils::ping_pong_texture::PingPongTexture,
-    simulation_data::SimulationData
+    simulation_data::{SimulationData, InitSimulationData}
 };
 
 #[derive(Default)]
@@ -29,6 +29,7 @@ pub struct NcaApp {
     simulation_render_pipeline: wgpu::RenderPipeline,
     screen_render_pipeline: wgpu::RenderPipeline,
     simulation_textures: PingPongTexture,
+    init_simulation_uniforms: InitSimulationData,
     simulation_uniforms: SimulationData,
     init: bool,
 
@@ -71,10 +72,12 @@ impl App for NcaApp {
             label: None,
         };
 
-        let simulation_textures = PingPongTexture::from_descriptor(&_app_state.device, &texture_desc, Some("simulation")).unwrap();
-         
-        let simulation_uniforms = SimulationData::new(&_app_state.device, &simulation_size);
+        let init_simulation_uniforms = InitSimulationData::new(&_app_state.device);
         
+        let simulation_textures = PingPongTexture::from_descriptor(&_app_state.device, &texture_desc, Some("simulation")).unwrap();
+        
+        let simulation_uniforms = SimulationData::new(&_app_state.device, &simulation_size);
+
         let simulation_sampler = _app_state.device.create_sampler(&wgpu::SamplerDescriptor {
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
@@ -165,7 +168,7 @@ impl App for NcaApp {
             label: Some("Init Simulation Render Pipeline"),
             layout: Some(&_app_state.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Init Simulation Pipeline Layout"),
-                bind_group_layouts: &[],
+                bind_group_layouts: &[&init_simulation_uniforms.bind_group_layout],
                 push_constant_ranges: &[],
             })),
             vertex: wgpu::VertexState {
@@ -223,6 +226,7 @@ impl App for NcaApp {
             simulation_render_pipeline,
             screen_render_pipeline,
             simulation_textures,
+            init_simulation_uniforms,
             simulation_uniforms,
             init: false,
         
@@ -282,6 +286,8 @@ impl App for NcaApp {
             .show(&ctx, |ui| {
                 ui.heading("Left Panel");
                 ui.allocate_space(ui.available_size());
+
+
             });
         
         egui::SidePanel::right("right_panel")
@@ -336,6 +342,7 @@ impl App for NcaApp {
                 });
                 
                 init_simulation_render_pass.set_pipeline(&self.init_simulation_render_pipeline);
+                init_simulation_render_pass.set_bind_group(0, &self.init_simulation_uniforms.bind_group, &[]);
                 init_simulation_render_pass.draw(0..3, 0..1);
             }
         }
