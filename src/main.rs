@@ -1,6 +1,9 @@
 mod nca_app;
-use nca_app::NcaApp;
 
+mod utils;
+mod simulation_data;
+
+use nca_app::NcaApp;
 fn main() {
 
     skeleton_app::run_application::<NcaApp>(skeleton_app::AppConfig {

@@ -6,9 +6,10 @@ use winit::{
 
 use skeleton_app::{App, AppState};
 
-use rust_nca::{
+
+use crate::{
     utils::ping_pong_texture::PingPongTexture,
-    simulation_data::SimulationData,
+    simulation_data::SimulationData
 };
 
 #[derive(Default)]
@@ -317,6 +318,8 @@ impl App for NcaApp {
 
         Ok(())
     }
+
+
 
     fn render(&mut self, _app_state: &mut AppState, _encoder: &mut wgpu::CommandEncoder, _output_view: &wgpu::TextureView) -> Result<(), wgpu::SurfaceError> {
         
