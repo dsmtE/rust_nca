@@ -274,14 +274,14 @@ fn run_loop(
             }
             
             // TODO: fix render method here by calling sub app render features
-            let full_output = {
+            let gui_output: egui::FullOutput = {
                 let _frame_data = app_state.gui.start_frame(app_state.window.scale_factor() as _);
                 app.render_gui(app_state)?;
                 app_state.gui.end_frame(&mut app_state.window)
             };
             
             // TODO render ui and app
-            render_app(app, app_state, full_output)?;
+            render_app(app, app_state, gui_output)?;
         }
         Event::LoopDestroyed => {
             app.cleanup()?;
@@ -295,7 +295,7 @@ fn run_loop(
 pub fn render_app(
     app: &mut impl App,
     app_state: &mut AppState,
-    full_output: egui::FullOutput,
+    gui_output: egui::FullOutput,
 ) -> Result<(), wgpu::SurfaceError>  {
 
     let output: wgpu::SurfaceTexture = app_state.surface.get_current_texture()?;
@@ -325,7 +325,7 @@ pub fn render_app(
             &screen_descriptor,
             &mut encoder,
             &view,
-            full_output,
+            gui_output,
     ).expect("Failed to execute gui render pass!");
 
     // submit will accept anything that implements IntoIter

@@ -1,6 +1,5 @@
 use anyhow::{Result, Context};
 use egui_wgpu_backend::RenderPass;
-use egui::ClippedMesh;
 
 use egui_winit_platform::{Platform, PlatformDescriptor};
 use std::{sync::Arc, time::Instant};
@@ -103,18 +102,24 @@ impl GuiRenderWgpu {
         screen_descriptor: &ScreenDescriptor,
         encoder: &mut CommandEncoder,
         output_view: &wgpu::TextureView,
-        full_output: egui::FullOutput,
+        gui_output: egui::FullOutput,
     ) -> Result<()> {
-        // TODO: use full_output.needs_repaint ?
-        self.renderpass.add_textures(&device, &queue, &full_output.textures_delta)?;
 
-        let paint_jobs = context.tessellate(full_output.shapes);
+        // TODO: how handle not repaint ui if isn't needed
+        // if gui_output.needs_repaint {
+
+        self.renderpass.add_textures(&device, &queue, &gui_output.textures_delta)?;
+
+        let paint_jobs = context.tessellate(gui_output.shapes);
 
         self.renderpass.update_buffers(&device, &queue, &paint_jobs, &screen_descriptor);
 
         self.renderpass
             .execute(encoder, &output_view, &paint_jobs, &screen_descriptor, None)
             .context("Failed to execute egui renderpass!")?;
+
+        // Remove unused textures
+        self.renderpass.remove_textures(gui_output.textures_delta).unwrap();
 
         Ok(())
     }
