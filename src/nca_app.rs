@@ -283,7 +283,7 @@ impl App for NcaApp {
                 ui.heading("Left Panel");
                 ui.allocate_space(ui.available_size());
             });
-
+        
         egui::SidePanel::right("right_panel")
             .resizable(true)
             .show(&ctx, |ui| {
@@ -300,19 +300,12 @@ impl App for NcaApp {
             });
 
 
-        // Create manually virtual center panel to get rect used as viewport afterward
-        let center_ui_panel_viewport = egui::Ui::new(
-            ctx.clone(),
-            egui::LayerId::background(),
-            egui::Id::new("central_panel"),
-            ctx.available_rect(),
-            ctx.input().screen_rect()
-        ).max_rect();
+        let center_rect = ctx.available_rect();
 
         // update ui_central_viewport
-        let center_size = center_ui_panel_viewport.max - center_ui_panel_viewport.min;
-        self.ui_central_viewport.x = center_ui_panel_viewport.min.x;
-        self.ui_central_viewport.y = center_ui_panel_viewport.min.y;
+        let center_size = center_rect.max - center_rect.min;
+        self.ui_central_viewport.x = center_rect.min.x;
+        self.ui_central_viewport.y = center_rect.min.y;
         self.ui_central_viewport.width = center_size.x;
         self.ui_central_viewport.height = center_size.y;
 

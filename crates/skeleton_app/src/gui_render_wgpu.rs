@@ -1,6 +1,7 @@
-use anyhow::{Context, Result};
+use anyhow::{Result, Context};
 use egui_wgpu_backend::RenderPass;
-use egui::{ClippedMesh, CtxRef};
+use egui::ClippedMesh;
+
 use egui_winit_platform::{Platform, PlatformDescriptor};
 use std::{sync::Arc, time::Instant};
 use wgpu::CommandEncoder;
@@ -29,7 +30,7 @@ impl Gui {
             physical_width: screen_descriptor.physical_width,
             physical_height: screen_descriptor.physical_height,
             scale_factor: screen_descriptor.scale_factor as f64,
-            font_definitions: egui::FontDefinitions::default(),
+            font_definitions: epi::egui::FontDefinitions::default(),
             style: Default::default(),
         });
 
@@ -46,7 +47,7 @@ impl Gui {
         self.platform.handle_event(&event);
     }
 
-    pub fn context(&self) -> CtxRef {
+    pub fn context(&self) -> epi::egui::Context {
         self.platform.context()
     }
 
@@ -71,11 +72,11 @@ impl Gui {
         }
     }
 
-    pub fn end_frame(&mut self, window: &Window) -> Vec<ClippedMesh> {
-        let (_output, paint_commands) = self.platform.end_frame(Some(&window));
+    pub fn end_frame(&mut self, window: &Window) -> egui::FullOutput {
         let frame_time = (Instant::now() - self.last_frame_start).as_secs_f64() as f32;
         self.previous_frame_time = Some(frame_time);
-        self.platform.context().tessellate(paint_commands)
+
+        self.platform.end_frame(Some(&window))
     }
 }
 
@@ -96,17 +97,18 @@ impl GuiRenderWgpu {
 
     pub fn render(
         &mut self,
-        context: CtxRef,
+        context: epi::egui::Context,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         screen_descriptor: &ScreenDescriptor,
         encoder: &mut CommandEncoder,
         output_view: &wgpu::TextureView,
-        paint_jobs: &[ClippedMesh],
+        full_output: egui::FullOutput,
     ) -> Result<()> {
-        self.renderpass.update_texture(&device, &queue, &context.font_image());
+        // TODO: use full_output.needs_repaint ?
+        self.renderpass.add_textures(&device, &queue, &full_output.textures_delta)?;
 
-        self.renderpass.update_user_textures(&device, &queue);
+        let paint_jobs = context.tessellate(full_output.shapes);
 
         self.renderpass.update_buffers(&device, &queue, &paint_jobs, &screen_descriptor);
 

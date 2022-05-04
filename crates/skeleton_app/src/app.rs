@@ -226,13 +226,13 @@ fn run_loop(
         Event::RedrawRequested(_) => {
             // TODO move that
             // TODO: fix render method here by calling sub app render features
-            let ui_clipped_meshes = {
+            let full_output = {
                 let _frame_data = app_state.gui.start_frame(app_state.window.scale_factor() as _);
                 app.render_gui(app_state)?;
                 app_state.gui.end_frame(&mut app_state.window)
             };
 
-            match render_app(app, app_state, ui_clipped_meshes) {
+            match render_app(app, app_state, full_output) {
                 Ok(_) => {}
                 // TODO: Reconfigure the surface if lost
                 // Err(wgpu::SurfaceError::Lost) => { }
@@ -274,14 +274,14 @@ fn run_loop(
             }
             
             // TODO: fix render method here by calling sub app render features
-            let ui_clipped_meshes = {
+            let full_output = {
                 let _frame_data = app_state.gui.start_frame(app_state.window.scale_factor() as _);
                 app.render_gui(app_state)?;
                 app_state.gui.end_frame(&mut app_state.window)
             };
-
+            
             // TODO render ui and app
-            render_app(app, app_state, ui_clipped_meshes)?;
+            render_app(app, app_state, full_output)?;
         }
         Event::LoopDestroyed => {
             app.cleanup()?;
@@ -295,7 +295,7 @@ fn run_loop(
 pub fn render_app(
     app: &mut impl App,
     app_state: &mut AppState,
-    ui_clipped_meshes: Vec<ClippedMesh>,
+    full_output: egui::FullOutput,
 ) -> Result<(), wgpu::SurfaceError>  {
 
     let output: wgpu::SurfaceTexture = app_state.surface.get_current_texture()?;
@@ -325,7 +325,7 @@ pub fn render_app(
             &screen_descriptor,
             &mut encoder,
             &view,
-            &ui_clipped_meshes,
+            full_output,
     ).expect("Failed to execute gui render pass!");
 
     // submit will accept anything that implements IntoIter

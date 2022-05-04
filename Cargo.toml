@@ -16,7 +16,7 @@ bytemuck = { version = "1.7.3", features = [ "derive" ] }
 log = "0.4.14"
 env_logger = "0.9.0"
 chrono = "0.4.19"
-egui = "0.16.1"
+egui = "0.17.0"
 winit = "0.26.0"
 
 [[bin]]
