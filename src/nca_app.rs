@@ -9,7 +9,8 @@ use skeleton_app::{App, AppState};
 
 use crate::{
     utils::ping_pong_texture::PingPongTexture,
-    simulation_data::{SimulationData, InitSimulationData}
+    simulation_data::{SimulationData, InitSimulationData},
+    egui_widgets::{UiWidget, CodeEditor},
 };
 
 #[derive(Default)]
@@ -39,6 +40,9 @@ pub struct NcaApp {
     bind_group_simulation_pong: wgpu::BindGroup,
 
     ui_central_viewport: Viewport,
+
+    language: String,
+    code: String,
 }
 
 impl App for NcaApp {
@@ -219,7 +223,6 @@ impl App for NcaApp {
         });
         
         Self {
-
             clear_color: wgpu::Color { r: 0.1, g: 0.2, b: 0.3, a: 1.0 },
 
             init_simulation_render_pipeline,
@@ -236,6 +239,8 @@ impl App for NcaApp {
             bind_group_simulation_pong,
         
             ui_central_viewport,
+            language: "".to_owned(),
+            code: "".to_owned(),
         }
     }
     
@@ -285,18 +290,13 @@ impl App for NcaApp {
             .resizable(true)
             .show(&ctx, |ui| {
                 ui.heading("Left Panel");
+                
+                let mut code_editor = CodeEditor::new(&mut self.language, &mut self.code);
+                code_editor.show(ui);
+
                 ui.allocate_space(ui.available_size());
-
-
             });
         
-        egui::SidePanel::right("right_panel")
-            .resizable(true)
-            .show(&ctx, |ui| {
-                ui.heading("Right Panel");
-                ui.allocate_space(ui.available_size());
-            });
-
         egui::TopBottomPanel::bottom("bottom_panel")
             .resizable(true)
             .show(&ctx, |ui| {
