@@ -23,14 +23,7 @@ var<private> kernel: array<f32, 9> = array<f32, 9>(
     1.0,1.0,1.0,
 );
 
-// [functionTemplate]
-
-fn activationFunction(kernelOutput: f32) -> vec4<f32> {
-    var d: f32 = 0.1;
-    var condition: bool = (kernelOutput > 3.0-d && kernelOutput < 3.0+d) || (kernelOutput > 11.0-d && kernelOutput < 11.0+d) || (kernelOutput > 12.0-d && kernelOutput < 12.0+d);
-    var r: f32 = select(0.0, 1.0, condition);
-    return vec4<f32>(r, r, r, 1.0);
-}
+[functionTemplate]
 
 [[stage(fragment)]]
 fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
@@ -44,8 +37,6 @@ fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
         + textureSample(simulation_texture, simulation_tex_sampler, getCoords(in.uv, vec2<f32>( 1., 1.))).x * kernel[6]
         + textureSample(simulation_texture, simulation_tex_sampler, getCoords(in.uv, vec2<f32>( 0., 1.))).x * kernel[7]
         + textureSample(simulation_texture, simulation_tex_sampler, getCoords(in.uv, vec2<f32>(-1., 1.))).x * kernel[8];
-
-    // return [functionName](sum);
 
     return activationFunction(sum);
 }

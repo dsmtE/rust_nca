@@ -23,8 +23,19 @@ pub struct Viewport {
     pub max_depth: f32,
 }
 
+pub enum ShaderState {
+    Compiled,
+    Dirty,
+    CompilationFail(String),
+}
+
 pub struct NcaApp {
     clear_color: wgpu::Color,
+
+    primitive_state: wgpu::PrimitiveState,
+    multisample_state: wgpu::MultisampleState,
+
+    screen_shader: wgpu::ShaderModule,
 
     init_simulation_render_pipeline: wgpu::RenderPipeline,
     simulation_render_pipeline: wgpu::RenderPipeline,
@@ -41,8 +52,67 @@ pub struct NcaApp {
 
     ui_central_viewport: Viewport,
 
-    language: String,
     code: String,
+    shader_state: ShaderState,
+}
+
+impl NcaApp {
+    pub fn generate_simulation_pipeline(&mut self, device: &mut wgpu::Device, surface_configuration: &wgpu::SurfaceConfiguration) -> Result<wgpu::RenderPipeline, wgpu::Error> {
+        let shader_code: String = include_str!("shaders/simulationBase.wgsl").replace("[functionTemplate]", &self.code);
+            
+        let (tx, rx) = std::sync::mpsc::channel::<wgpu::Error>();
+        device.on_uncaptured_error(move |e: wgpu::Error| {
+            tx.send(e).expect("sending error failed");
+        });
+
+        let simulation_shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+            label: Some("Simulation Shader"),
+            source: wgpu::ShaderSource::Wgsl(
+                shader_code.into(),
+            ),
+        });
+
+        let simulation_render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Simulation Render Pipeline"),
+            layout: Some(&device.create_pipeline_layout(
+                &wgpu::PipelineLayoutDescriptor {
+                    label: Some("Simulation Pipeline Layout"),
+                    bind_group_layouts: &[
+                        &self.simulation_textures.bind_group_layout,
+                        &self.simulation_uniforms.bind_group_layout,
+                    ],
+                    push_constant_ranges: &[],
+                },
+            )),
+            vertex: wgpu::VertexState {
+                module: &self.screen_shader,
+                entry_point: "vs_main",
+                buffers: &[],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &simulation_shader,
+                entry_point: "fs_main",
+                targets: &[wgpu::ColorTargetState {
+                    format: surface_configuration.format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                }],
+            }),
+            primitive: self.primitive_state,
+            depth_stencil: None,
+            multisample: self.multisample_state,
+            multiview: None,
+        });
+        
+        device.on_uncaptured_error(|e| panic!("{}", e));
+        
+
+        if let Ok(err) = rx.try_recv() {
+            return Err(err);
+        }
+
+        Ok(simulation_render_pipeline)
+    }
 }
 
 impl App for NcaApp {
@@ -225,6 +295,11 @@ impl App for NcaApp {
         Self {
             clear_color: wgpu::Color { r: 0.1, g: 0.2, b: 0.3, a: 1.0 },
 
+            primitive_state,
+            multisample_state,
+
+            screen_shader,
+
             init_simulation_render_pipeline,
             simulation_render_pipeline,
             screen_render_pipeline,
@@ -239,8 +314,13 @@ impl App for NcaApp {
             bind_group_simulation_pong,
         
             ui_central_viewport,
-            language: "".to_owned(),
-            code: "".to_owned(),
+            code: "fn activationFunction(kernelOutput: f32) -> vec4<f32> {
+                var d: f32 = 0.1;
+                var condition: bool = (kernelOutput > 3.0-d && kernelOutput < 3.0+d) || (kernelOutput > 11.0-d && kernelOutput < 11.0+d) || (kernelOutput > 12.0-d && kernelOutput < 12.0+d);
+                var r: f32 = select(0.0, 1.0, condition);
+                return vec4<f32>(r, r, r, 1.0);
+            }".to_owned(),
+            shader_state : ShaderState::Compiled,
         }
     }
     
@@ -291,8 +371,30 @@ impl App for NcaApp {
             .show(&ctx, |ui| {
                 ui.heading("Left Panel");
                 
-                let mut code_editor = CodeEditor::new(&mut self.language, &mut self.code);
+                let mut code_editor = CodeEditor::new(&mut self.code, "rs", Some(15));
                 code_editor.show(ui);
+                
+
+                let code_to_paste: Option<String> = ctx.input().events.iter().find_map(|e| match e {
+                    egui::Event::Paste(paste_content)=> Some((*paste_content).clone()),
+                    _ => None,
+                });
+        
+                if let Some(new_code) = code_to_paste {
+                    self.code = new_code;
+                }
+        
+                if let ShaderState::CompilationFail(error) = &self.shader_state {
+                    ui.label(format!("Shader compile error:\n {}", error));
+                }
+
+                if ui.button("Recompile").clicked() {
+                    self.shader_state = ShaderState::Dirty;
+                }
+
+                if ui.button("init").clicked() {
+                    self.init = false;
+                }
 
                 ui.allocate_space(ui.available_size());
             });
@@ -319,6 +421,24 @@ impl App for NcaApp {
     }
 
 
+    fn update(&mut self, _app_state: &mut AppState) -> Result<()> {
+        
+        if let ShaderState::Dirty = self.shader_state {
+            match self.generate_simulation_pipeline(&mut _app_state.device, &_app_state.config) {
+                Err(err) => match err {
+                    wgpu::Error::OutOfMemory {..} => anyhow::bail!("Shader compilation gpu::Error::OutOfMemory"),
+                    wgpu::Error::Validation { description, .. } => self.shader_state = ShaderState::CompilationFail(description),
+                }
+                Ok(simulation_render_pipeline) => {
+                    self.simulation_render_pipeline = simulation_render_pipeline;
+                    self.shader_state = ShaderState::Compiled;
+                }
+            }
+        }
+
+        Ok(())
+    }
+                
 
     fn render(&mut self, _app_state: &mut AppState, _encoder: &mut wgpu::CommandEncoder, _output_view: &wgpu::TextureView) -> Result<(), wgpu::SurfaceError> {
         
