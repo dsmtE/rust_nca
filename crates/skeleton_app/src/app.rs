@@ -13,8 +13,6 @@ use winit::{
 
 use anyhow::Result;
 
-use egui::ClippedMesh;
-
 use crate::gui_render_wgpu::{Gui, GuiRenderWgpu, ScreenDescriptor};
 
 pub struct AppState {
@@ -38,7 +36,7 @@ pub trait App {
         Ok(())
     }
 
-    fn render_gui(&mut self, _app_state: &mut AppState) -> Result<()> {
+    fn render_gui(&mut self, ctx: & epi::egui::Context) -> Result<()> {
         Ok(())
     }
 
@@ -228,7 +226,7 @@ fn run_loop(
             // TODO: fix render method here by calling sub app render features
             let full_output = {
                 let _frame_data = app_state.gui.start_frame(app_state.window.scale_factor() as _);
-                app.render_gui(app_state)?;
+                app.render_gui(&app_state.gui.context())?;
                 app_state.gui.end_frame(&mut app_state.window)
             };
 
@@ -276,7 +274,7 @@ fn run_loop(
             // TODO: fix render method here by calling sub app render features
             let gui_output: egui::FullOutput = {
                 let _frame_data = app_state.gui.start_frame(app_state.window.scale_factor() as _);
-                app.render_gui(app_state)?;
+                app.render_gui(&app_state.gui.context())?;
                 app_state.gui.end_frame(&mut app_state.window)
             };
             

@@ -6,6 +6,7 @@ use winit::{
 
 use skeleton_app::{App, AppState};
 
+use epi;
 
 use crate::{
     utils::ping_pong_texture::PingPongTexture,
@@ -347,9 +348,7 @@ impl App for NcaApp {
         Ok(())
     }
 
-    fn render_gui(&mut self, _app_state: &mut AppState) -> Result<()> {
-        let ctx = _app_state.gui.context();
-        
+    fn render_gui(&mut self, ctx: & epi::egui::Context) -> Result<()> {
         egui::TopBottomPanel::top("top_panel")
             .resizable(true)
             .show(&ctx, |ui| {
