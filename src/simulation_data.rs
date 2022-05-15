@@ -16,26 +16,27 @@ impl SimulationUniforms {
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-struct InitSimulationUniforms {
-    seed: f32
+pub struct InitSimulationUniforms {
+    pub seed: f32,
+    pub initialisation_mode: u32,
 }
 
 impl InitSimulationUniforms {
     pub fn new() -> Self {
         Self {
             seed: rand::thread_rng().gen::<f32>(),
+            initialisation_mode: 0,
         }
     }
 }
 
 pub struct SimulationData {
-    // uniform: SimulationUniforms,
-    // buffer: wgpu::Buffer,
     pub bind_group_layout: wgpu::BindGroupLayout,
     pub bind_group: wgpu::BindGroup,
 }
 
 pub struct InitSimulationData {
+    pub uniform: InitSimulationUniforms,
     pub bind_group_layout: wgpu::BindGroupLayout,
     pub bind_group: wgpu::BindGroup,
 }
@@ -80,8 +81,6 @@ impl SimulationData {
         });
 
         Self {
-            // uniform,
-            // buffer,
             bind_group_layout,
             bind_group,
         }
@@ -132,6 +131,7 @@ impl InitSimulationData {
         });
 
         Self {
+            uniform,
             bind_group_layout,
             bind_group,
         }

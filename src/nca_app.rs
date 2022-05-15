@@ -370,30 +370,48 @@ impl App for NcaApp {
             .show(&ctx, |ui| {
                 ui.heading("Left Panel");
                 
-                let mut code_editor = CodeEditor::new(&mut self.code, "rs", Some(15));
-                code_editor.show(ui);
-                
 
-                let code_to_paste: Option<String> = ctx.input().events.iter().find_map(|e| match e {
-                    egui::Event::Paste(paste_content)=> Some((*paste_content).to_owned()),
-                    _ => None,
+                ui.collapsing("Starting settings", |ui| {
+
+                    ui.horizontal(|ui| {
+                        ui.label("seed: ");
+                        ui.add(egui::DragValue::new(&mut self.init_simulation_uniforms.uniform.seed).speed(1));
+                    });
+                    
+                    if ui.button("randoms float").clicked() {
+                        self.init = false;
+                        self.init_simulation_uniforms.uniform.initialisation_mode = 1;
+                    }
+
+                    if ui.button("randoms ints").clicked() {
+                        self.init = false;
+                        self.init_simulation_uniforms.uniform.initialisation_mode = 0;
+                    }
                 });
-        
-                if let Some(new_code) = code_to_paste {
-                    self.code = new_code;
-                }
-        
-                if let ShaderState::CompilationFail(error) = &self.shader_state {
-                    ui.label(format!("Shader compile error:\n {}", error));
-                }
 
-                if ui.button("Recompile").clicked() {
-                    self.shader_state = ShaderState::Dirty;
-                }
+                ui.collapsing("Simulation", |ui| {
+                    
+                    let mut code_editor = CodeEditor::new(&mut self.code, "rs", Some(15));
+                    code_editor.show(ui);
+                    
 
-                if ui.button("init").clicked() {
-                    self.init = false;
-                }
+                    let code_to_paste: Option<String> = ctx.input().events.iter().find_map(|e| match e {
+                        egui::Event::Paste(paste_content)=> Some((*paste_content).to_owned()),
+                        _ => None,
+                    });
+            
+                    if let Some(new_code) = code_to_paste {
+                        self.code = new_code;
+                    }
+            
+                    if let ShaderState::CompilationFail(error) = &self.shader_state {
+                        ui.label(format!("Shader compile error:\n {}", error));
+                    }
+
+                    if ui.button("Recompile").clicked() {
+                        self.shader_state = ShaderState::Dirty;
+                    }
+                });
 
                 ui.allocate_space(ui.available_size());
             });
