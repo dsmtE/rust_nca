@@ -376,7 +376,7 @@ impl App for NcaApp {
                 
 
                 let code_to_paste: Option<String> = ctx.input().events.iter().find_map(|e| match e {
-                    egui::Event::Paste(paste_content)=> Some((*paste_content).clone()),
+                    egui::Event::Paste(paste_content)=> Some((*paste_content).to_owned()),
                     _ => None,
                 });
         
