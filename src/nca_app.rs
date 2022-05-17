@@ -316,8 +316,7 @@ impl App for NcaApp {
         
             ui_central_viewport,
             code: "fn activationFunction(kernelOutput: f32) -> vec4<f32> {
-                var d: f32 = 0.1;
-                var condition: bool = (kernelOutput > 3.0-d && kernelOutput < 3.0+d) || (kernelOutput > 11.0-d && kernelOutput < 11.0+d) || (kernelOutput > 12.0-d && kernelOutput < 12.0+d);
+                var condition: bool = kernelOutput == 3.0 || kernelOutput == 11.0 || kernelOutput == 12.0;
                 var r: f32 = select(0.0, 1.0, condition);
                 return vec4<f32>(r, r, r, 1.0);
             }".to_owned(),
