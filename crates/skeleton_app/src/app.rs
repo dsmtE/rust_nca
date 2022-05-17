@@ -36,7 +36,7 @@ pub trait App {
         Ok(())
     }
 
-    fn render_gui(&mut self, ctx: & epi::egui::Context) -> Result<()> {
+    fn render_gui(&mut self, _ctx: & epi::egui::Context) -> Result<()> {
         Ok(())
     }
 

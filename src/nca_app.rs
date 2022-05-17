@@ -348,10 +348,10 @@ impl App for NcaApp {
         Ok(())
     }
 
-    fn render_gui(&mut self, ctx: & epi::egui::Context) -> Result<()> {
+    fn render_gui(&mut self, _ctx: & epi::egui::Context) -> Result<()> {
         egui::TopBottomPanel::top("top_panel")
             .resizable(true)
-            .show(&ctx, |ui| {
+            .show(&_ctx, |ui| {
                 egui::menu::bar(ui, |ui| {
                     ui.menu_button("File", |ui| {
                         if ui.button("Open").clicked() {
@@ -367,7 +367,7 @@ impl App for NcaApp {
 
         egui::SidePanel::left("left_panel")
             .resizable(true)
-            .show(&ctx, |ui| {
+            .show(&_ctx, |ui| {
                 ui.heading("Left Panel");
                 
 
@@ -388,14 +388,13 @@ impl App for NcaApp {
                         self.init_simulation_uniforms.uniform.initialisation_mode = 0;
                     }
                 });
-
+    
                 ui.collapsing("Simulation", |ui| {
                     
                     let mut code_editor = CodeEditor::new(&mut self.code, "rs", Some(15));
                     code_editor.show(ui);
-                    
 
-                    let code_to_paste: Option<String> = ctx.input().events.iter().find_map(|e| match e {
+                    let code_to_paste: Option<String> = _ctx.input().events.iter().find_map(|e| match e {
                         egui::Event::Paste(paste_content)=> Some((*paste_content).to_owned()),
                         _ => None,
                     });
@@ -418,14 +417,13 @@ impl App for NcaApp {
         
         egui::TopBottomPanel::bottom("bottom_panel")
             .resizable(true)
-            .show(&ctx, |ui| {
+            .show(&_ctx, |ui| {
                 ui.heading("Bottom Panel");
                 
                 ui.allocate_space(ui.available_size());
             });
 
-
-        let center_rect = ctx.available_rect();
+        let center_rect = _ctx.available_rect();
 
         // update ui_central_viewport
         let center_size = center_rect.max - center_rect.min;
