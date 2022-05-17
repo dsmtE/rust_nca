@@ -373,19 +373,40 @@ impl App for NcaApp {
 
                 ui.collapsing("Starting settings", |ui| {
 
-                    ui.horizontal(|ui| {
-                        ui.label("seed: ");
-                        ui.add(egui::DragValue::new(&mut self.init_simulation_uniforms.uniform.seed).speed(1));
-                    });
-                    
+                    ui.add(egui::DragValue::from_get_set(|optional_value: Option<f64>| {
+                        if let Some(v) = optional_value {
+                            self.init_simulation_uniforms.uniform.seed = v as f32;
+                            self.init_simulation_uniforms.need_update = true;
+                        }
+                        self.init_simulation_uniforms.uniform.seed as f64
+                    }).speed(0.1).prefix("seed: "));
+
                     if ui.button("randoms float").clicked() {
                         self.init = false;
                         self.init_simulation_uniforms.uniform.initialisation_mode = 1;
+                        self.init_simulation_uniforms.need_update = true;
                     }
 
                     if ui.button("randoms ints").clicked() {
                         self.init = false;
                         self.init_simulation_uniforms.uniform.initialisation_mode = 0;
+                        self.init_simulation_uniforms.need_update = true;
+                    }
+                });
+
+                ui.collapsing("Kernel", |ui| {
+                    for j in 0..3 {
+                        ui.horizontal(|ui| {
+                            for i in 0..3 {
+                                ui.add(egui::DragValue::from_get_set(|optional_value: Option<f64>| {
+                                    if let Some(v) = optional_value {
+                                        self.simulation_uniforms.uniform.kernel[j*3+i] = v as f32;
+                                        self.simulation_uniforms.need_update = true;
+                                    }
+                                    self.simulation_uniforms.uniform.kernel[j*3+i] as f64
+                                }).speed(0.1));
+                            }
+                        });
                     }
                 });
     
@@ -460,7 +481,11 @@ impl App for NcaApp {
         // init if needed
         if self.init == false {
             self.init = true;
-            println!("init {}", self.init);
+
+            if self.init_simulation_uniforms.need_update {
+                self.init_simulation_uniforms.update(&_app_state.queue);
+            }
+
             {
                 let mut init_simulation_render_pass = _encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("Init Simulation Render Pass"),
@@ -484,6 +509,10 @@ impl App for NcaApp {
 
         // simulation
         {
+            if self.simulation_uniforms.need_update {
+                self.simulation_uniforms.update(&_app_state.queue);
+            }
+
             let mut simulation_render_pass = _encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Simulation Render Pass"),
                 color_attachments: &[
