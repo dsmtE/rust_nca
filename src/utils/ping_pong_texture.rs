@@ -72,7 +72,7 @@ impl PingPongTexture {
             }
         );
 
-        let bind_group_pong_label: String = self.label.unwrap_or("").to_owned() + " bind group ping";
+        let bind_group_pong_label: String = self.label.unwrap_or("").to_owned() + " bind group pong";
         let bind_group_pong = device.create_bind_group(
             &wgpu::BindGroupDescriptor {
                 layout: &self.bind_group_layout,
