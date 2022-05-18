@@ -397,9 +397,9 @@ impl App for NcaApp {
             .show(&_ctx, |ui| {
                 ui.heading("Left Panel");
                 
-
-                ui.collapsing("Starting settings", |ui| {
-
+                egui::CollapsingHeader::new("Starting settings")
+                .default_open(true)
+                .show(ui, |ui| {
                     ui.add(egui::DragValue::from_get_set(|optional_value: Option<f64>| {
                         if let Some(v) = optional_value {
                             self.init_simulation_data.uniform.seed = v as f32;
@@ -420,8 +420,10 @@ impl App for NcaApp {
                         self.init_simulation_data.need_update = true;
                     }
                 });
-
-                ui.collapsing("Kernel", |ui| {
+                
+                egui::CollapsingHeader::new("Kernel")
+                .default_open(true)
+                .show(ui, |ui| {
                     for j in 0..3 {
                         ui.horizontal(|ui| {
                             for i in 0..3 {
@@ -436,9 +438,10 @@ impl App for NcaApp {
                         });
                     }
                 });
-    
-                ui.collapsing("Simulation", |ui| {
-                    
+                
+                egui::CollapsingHeader::new("Simulation")
+                .default_open(true)
+                .show(ui, |ui| {
                     let mut code_editor = CodeEditor::new(&mut self.code, "rs", Some(15));
                     code_editor.show(ui);
 
@@ -460,8 +463,9 @@ impl App for NcaApp {
                     }
                 });
                 
-                ui.collapsing("Display Options", |ui| {
-
+                egui::CollapsingHeader::new("Display Options")
+                .default_open(true)
+                .show(ui, |ui| {
                     ui.horizontal(|ui| {
                         ui.label("Display frame mode: ");
                         egui::ComboBox::from_id_source("display_frames_mode")
@@ -474,8 +478,6 @@ impl App for NcaApp {
                         );
                     });
                 });
-
-                
 
                 ui.allocate_space(ui.available_size());
             });
