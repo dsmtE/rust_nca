@@ -15,6 +15,8 @@ use anyhow::Result;
 
 use crate::gui_render_wgpu::{Gui, GuiRenderWgpu, ScreenDescriptor};
 
+use spin_sleep::LoopHelper;
+
 pub struct AppState {
     pub window: winit::window::Window,
 
@@ -26,6 +28,8 @@ pub struct AppState {
 
     pub gui: Gui,
     pub gui_render: GuiRenderWgpu,
+
+    pub loop_helper:  LoopHelper,
 }
 
 pub trait App {
@@ -157,21 +161,17 @@ pub fn run_application<T: App + 'static>(config: AppConfig) -> Result<()> {
     
         gui: gui,
         gui_render: gui_render,
+
+        loop_helper: LoopHelper::builder()
+        .report_interval_s(1.0)
+        .build_with_target_rate(60)
     };
 
     let mut app = T::create(&mut app_state);
 
     // Run
-
-    // TODO: create things for thoses mutate state variables
-    let (mut tx, mut rx): (mpsc::Sender<bool>, mpsc::Receiver<bool>) = mpsc::channel();
-
-    let mut previous_time = Instant::now();
-
-    let mut draw_requested = false;
-
     event_loop.run(move |event, _, control_flow| {
-        if let Err(error) = run_loop(&mut app, &mut app_state, event, control_flow, &mut previous_time, &mut tx, &mut rx, &mut draw_requested) {
+        if let Err(error) = run_loop(&mut app, &mut app_state, event, control_flow) {
             eprintln!("Application Error: {}", error);
         }
     });
@@ -182,10 +182,6 @@ fn run_loop(
     app_state: &mut AppState,
     event: Event<()>,
     control_flow: &mut ControlFlow,
-    previous_time: &mut Instant,
-    tx: &mut mpsc::Sender<bool>,
-    rx: &mut mpsc::Receiver<bool>,
-    draw_requested: &mut bool,
 ) -> Result<()> {
     *control_flow = ControlFlow::Poll;
 
@@ -246,40 +242,15 @@ fn run_loop(
             // RedrawRequested will only trigger once, unless we manually
             // request it.
             // window.request_redraw();
-
-            // move that elsewhere in app config
-            let wanted_fps: u64 = 30;
-
-            if !*draw_requested {
-                let current_time = Instant::now();
-                let elapsed_time = current_time - *previous_time;
-                let fps_duration = Duration::from_millis((1.0/(wanted_fps as f32) * 1000.0) as _);
-                let sleeping_time = if elapsed_time < fps_duration {fps_duration - elapsed_time} else {Duration::from_secs(0)};
-                let tx_clone = tx.clone();
-                thread::spawn(move || {
-                    thread::sleep(sleeping_time);
-                    tx_clone.send(true).unwrap();
-                });
-                *previous_time = current_time;
-                *draw_requested = true;
-
-            }else {
-                thread::sleep(Duration::from_millis(1)); // avoid using cpu 100%
-                if let Ok(_) = rx.try_recv() {
-                    *draw_requested = false;
-                    app_state.window.request_redraw();
-                }
+            app_state.window.request_redraw();
+            
+            if let Some(fps) = app_state.loop_helper.report_rate() {
+                // println!("fps report : {}", fps);
             }
-            
-            // TODO: fix render method here by calling sub app render features
-            let gui_output: egui::FullOutput = {
-                let _frame_data = app_state.gui.start_frame(app_state.window.scale_factor() as _);
-                app.render_gui(&app_state.gui.context())?;
-                app_state.gui.end_frame(&mut app_state.window)
-            };
-            
-            // TODO render ui and app
-            render_app(app, app_state, gui_output)?;
+
+            app_state.loop_helper.loop_sleep_no_spin(); // or `loop_sleep_no_spin()` to save battery
+            app_state.loop_helper.loop_start();
+
         }
         Event::LoopDestroyed => {
             app.cleanup()?;
