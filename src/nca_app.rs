@@ -42,8 +42,8 @@ pub struct NcaApp {
     simulation_render_pipeline: wgpu::RenderPipeline,
     screen_render_pipeline: wgpu::RenderPipeline,
     simulation_textures: PingPongTexture,
-    init_simulation_uniforms: InitSimulationData,
-    simulation_uniforms: SimulationData,
+    init_simulation_data: InitSimulationData,
+    simulation_data: SimulationData,
     init: bool,
 
     bind_group_display_ping : wgpu::BindGroup,
@@ -80,7 +80,7 @@ impl NcaApp {
                     label: Some("Simulation Pipeline Layout"),
                     bind_group_layouts: &[
                         &self.simulation_textures.bind_group_layout,
-                        &self.simulation_uniforms.bind_group_layout,
+                        &self.simulation_data.bind_group_layout,
                     ],
                     push_constant_ranges: &[],
                 },
@@ -305,8 +305,8 @@ impl App for NcaApp {
             simulation_render_pipeline,
             screen_render_pipeline,
             simulation_textures,
-            init_simulation_uniforms,
-            simulation_uniforms,
+            init_simulation_data: init_simulation_uniforms,
+            simulation_data: simulation_uniforms,
             init: false,
         
             bind_group_display_ping,
@@ -374,22 +374,22 @@ impl App for NcaApp {
 
                     ui.add(egui::DragValue::from_get_set(|optional_value: Option<f64>| {
                         if let Some(v) = optional_value {
-                            self.init_simulation_uniforms.uniform.seed = v as f32;
-                            self.init_simulation_uniforms.need_update = true;
+                            self.init_simulation_data.uniform.seed = v as f32;
+                            self.init_simulation_data.need_update = true;
                         }
-                        self.init_simulation_uniforms.uniform.seed as f64
+                        self.init_simulation_data.uniform.seed as f64
                     }).speed(0.1).prefix("seed: "));
 
                     if ui.button("randoms float").clicked() {
                         self.init = false;
-                        self.init_simulation_uniforms.uniform.initialisation_mode = 1;
-                        self.init_simulation_uniforms.need_update = true;
+                        self.init_simulation_data.uniform.initialisation_mode = 1;
+                        self.init_simulation_data.need_update = true;
                     }
 
                     if ui.button("randoms ints").clicked() {
                         self.init = false;
-                        self.init_simulation_uniforms.uniform.initialisation_mode = 0;
-                        self.init_simulation_uniforms.need_update = true;
+                        self.init_simulation_data.uniform.initialisation_mode = 0;
+                        self.init_simulation_data.need_update = true;
                     }
                 });
 
@@ -399,10 +399,10 @@ impl App for NcaApp {
                             for i in 0..3 {
                                 ui.add(egui::DragValue::from_get_set(|optional_value: Option<f64>| {
                                     if let Some(v) = optional_value {
-                                        self.simulation_uniforms.uniform.kernel[j*3+i] = v as f32;
-                                        self.simulation_uniforms.need_update = true;
+                                        self.simulation_data.uniform.kernel[j*3+i] = v as f32;
+                                        self.simulation_data.need_update = true;
                                     }
-                                    self.simulation_uniforms.uniform.kernel[j*3+i] as f64
+                                    self.simulation_data.uniform.kernel[j*3+i] as f64
                                 }).speed(0.1));
                             }
                         });
@@ -481,8 +481,8 @@ impl App for NcaApp {
         if self.init == false {
             self.init = true;
 
-            if self.init_simulation_uniforms.need_update {
-                self.init_simulation_uniforms.update(&_app_state.queue);
+            if self.init_simulation_data.need_update {
+                self.init_simulation_data.update(&_app_state.queue);
             }
 
             {
@@ -501,15 +501,15 @@ impl App for NcaApp {
                 });
                 
                 init_simulation_render_pass.set_pipeline(&self.init_simulation_render_pipeline);
-                init_simulation_render_pass.set_bind_group(0, &self.init_simulation_uniforms.bind_group, &[]);
+                init_simulation_render_pass.set_bind_group(0, &self.init_simulation_data.bind_group, &[]);
                 init_simulation_render_pass.draw(0..3, 0..1);
             }
         }
 
         // simulation
         {
-            if self.simulation_uniforms.need_update {
-                self.simulation_uniforms.update(&_app_state.queue);
+            if self.simulation_data.need_update {
+                self.simulation_data.update(&_app_state.queue);
             }
 
             let mut simulation_render_pass = _encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -529,7 +529,7 @@ impl App for NcaApp {
             simulation_render_pass.set_pipeline(&self.simulation_render_pipeline);
             let bind_group: &wgpu::BindGroup = if self.simulation_textures.state { &self.bind_group_simulation_pong } else { &self.bind_group_simulation_ping };
             simulation_render_pass.set_bind_group(0, bind_group, &[]);
-            simulation_render_pass.set_bind_group(1, &self.simulation_uniforms.bind_group, &[]);
+            simulation_render_pass.set_bind_group(1, &self.simulation_data.bind_group, &[]);
             simulation_render_pass.draw(0..3, 0..1);
         }
 
