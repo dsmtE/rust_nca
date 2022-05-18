@@ -131,7 +131,7 @@ impl App for NcaApp {
             max_depth: 1.0,
         };
 
-        let simulation_size: [u32; 2] = [400, 400];
+        let simulation_size: [u32; 2] = [200, 200];
         // Texture
         let texture_desc = wgpu::TextureDescriptor {
             size: wgpu::Extent3d {
