@@ -32,6 +32,13 @@ pub enum ShaderState {
     CompilationFail(String),
 }
 
+#[derive(Debug, PartialEq)]
+pub enum DisplayFramesMode {
+    All,
+    Evens,
+    Odd
+}
+
 pub struct NcaApp {
     clear_color: wgpu::Color,
 
@@ -60,6 +67,8 @@ pub struct NcaApp {
 
     code: String,
     shader_state: ShaderState,
+
+    display_frames_mode: DisplayFramesMode,
 }
 
 impl NcaApp {
@@ -339,6 +348,7 @@ impl App for NcaApp {
                 return vec4<f32>(r, r, r, 1.0);
             }".to_owned(),
             shader_state : ShaderState::Compiled,
+            display_frames_mode: DisplayFramesMode::All,
         }
     }
     
@@ -449,6 +459,23 @@ impl App for NcaApp {
                         self.shader_state = ShaderState::Dirty;
                     }
                 });
+                
+                ui.collapsing("Display Options", |ui| {
+
+                    ui.horizontal(|ui| {
+                        ui.label("Display frame mode: ");
+                        egui::ComboBox::from_id_source("display_frames_mode")
+                            .selected_text(format!("{:?}", self.display_frames_mode))
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(&mut self.display_frames_mode, DisplayFramesMode::All, "ALl");
+                                ui.selectable_value(&mut self.display_frames_mode, DisplayFramesMode::Evens, "Evens");
+                                ui.selectable_value(&mut self.display_frames_mode, DisplayFramesMode::Odd, "Odd");
+                            }
+                        );
+                    });
+                });
+
+                
 
                 ui.allocate_space(ui.available_size());
             });
@@ -584,7 +611,13 @@ impl App for NcaApp {
             );
 
             screen_render_pass.set_pipeline(&self.screen_render_pipeline);
-            let bind_group: &wgpu::BindGroup = if self.simulation_textures.state { &self.bind_group_display_pong } else { &self.bind_group_display_ping };
+
+            let bind_group: &wgpu::BindGroup = match self.display_frames_mode {
+                DisplayFramesMode::All => if self.simulation_textures.state { &self.bind_group_display_pong } else { &self.bind_group_display_ping }
+                DisplayFramesMode::Evens => &self.bind_group_display_pong,
+                DisplayFramesMode::Odd => &self.bind_group_display_ping,
+            };
+
             // TODO: why it's blinking on switch bindgroup ?
             // let bind_group: &wgpu::BindGroup = &self.bind_group_display_ping;
             screen_render_pass.set_bind_group(0, bind_group, &[]);
