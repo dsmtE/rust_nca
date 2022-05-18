@@ -400,6 +400,7 @@ impl App for NcaApp {
                 egui::CollapsingHeader::new("Starting settings")
                 .default_open(true)
                 .show(ui, |ui| {
+                    ui.separator();
                     ui.add(egui::DragValue::from_get_set(|optional_value: Option<f64>| {
                         if let Some(v) = optional_value {
                             self.init_simulation_data.uniform.seed = v as f32;
@@ -424,6 +425,7 @@ impl App for NcaApp {
                 egui::CollapsingHeader::new("Kernel")
                 .default_open(true)
                 .show(ui, |ui| {
+                    ui.separator();
                     for j in 0..3 {
                         ui.horizontal(|ui| {
                             for i in 0..3 {
@@ -442,6 +444,7 @@ impl App for NcaApp {
                 egui::CollapsingHeader::new("Simulation")
                 .default_open(true)
                 .show(ui, |ui| {
+                    ui.separator();
                     let mut code_editor = CodeEditor::new(&mut self.code, "rs", Some(15));
                     code_editor.show(ui);
 
@@ -466,6 +469,7 @@ impl App for NcaApp {
                 egui::CollapsingHeader::new("Display Options")
                 .default_open(true)
                 .show(ui, |ui| {
+                    ui.separator();
                     ui.horizontal(|ui| {
                         ui.label("Display frame mode: ");
                         egui::ComboBox::from_id_source("display_frames_mode")
