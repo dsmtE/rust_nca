@@ -19,31 +19,6 @@ impl<'a> CodeEditor<'a> {
 
 impl<'a> UiWidget for CodeEditor<'a> {
     fn show(&mut self, ui: &mut egui::Ui) -> egui::Response {
-        ui.horizontal(|ui| {
-            ui.set_height(0.0);
-            ui.label("An example of syntax highlighting in a TextEdit.");
-        });
-
-        if cfg!(feature = "syntect") {
-            ui.horizontal(|ui| {
-                ui.label(format!("Language: {}", self.language));
-            });
-            ui.horizontal_wrapped(|ui| {
-                ui.spacing_mut().item_spacing.x = 0.0;
-                ui.label("Syntax highlighting powered by ");
-                ui.hyperlink_to("syntect", "https://github.com/trishume/syntect");
-                ui.label(".");
-            });
-        } else {
-            ui.horizontal_wrapped(|ui| {
-                ui.spacing_mut().item_spacing.x = 0.0;
-                ui.label("Compile the demo with the ");
-                ui.code("syntax_highlighting");
-                ui.label(" feature to enable more accurate syntax highlighting using ");
-                ui.hyperlink_to("syntect", "https://github.com/trishume/syntect");
-                ui.label(".");
-            });
-        }
 
         let mut theme = crate::syntax_highlighting::CodeTheme::from_memory(ui.ctx());
         ui.collapsing("Theme", |ui| {
@@ -52,7 +27,6 @@ impl<'a> UiWidget for CodeEditor<'a> {
                 theme.clone().store_in_memory(ui.ctx());
             });
         });
-        
 
         let mut layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
             let mut layout_job =
@@ -70,9 +44,8 @@ impl<'a> UiWidget for CodeEditor<'a> {
                 ui.add(
                     egui::TextEdit::multiline(self.code)
                     .font(font) // for cursor height
-                    .code_editor()
-                    .desired_rows(self.height_row)
                     .lock_focus(true)
+                    .desired_rows(self.height_row)
                     .desired_width(f32::INFINITY)
                     .layouter(&mut layouter)
                 )
