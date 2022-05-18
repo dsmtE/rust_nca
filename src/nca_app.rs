@@ -4,6 +4,8 @@ use winit::{
     event::{Event, WindowEvent, MouseScrollDelta},
 };
 
+use std::time::{Instant, Duration};
+
 use skeleton_app::{App, AppState};
 
 use epi;
@@ -53,11 +55,23 @@ pub struct NcaApp {
 
     ui_central_viewport: Viewport,
 
+    target_delta: Duration,
+    last_simulation_end: Instant,
+
     code: String,
     shader_state: ShaderState,
 }
 
 impl NcaApp {
+
+    pub fn set_target_rate<R: Into<f64>>(&mut self, target_rate: R) {
+        self.target_delta = Duration::from_secs_f64(1.0 / target_rate.into());
+    }
+
+    pub fn target_rate(&self) -> f64 {
+        1.0 / self.target_delta.as_secs_f64()
+    }
+
     pub fn generate_simulation_pipeline(&mut self, device: &mut wgpu::Device, surface_configuration: &wgpu::SurfaceConfiguration) -> Result<wgpu::RenderPipeline, wgpu::Error> {
         let shader_code: String = include_str!("shaders/simulationBase.wgsl").replace("[functionTemplate]", &self.code);
             
@@ -315,6 +329,10 @@ impl App for NcaApp {
             bind_group_simulation_pong,
         
             ui_central_viewport,
+
+            target_delta: Duration::from_secs_f64(1.0 / 30.0),
+            last_simulation_end: Instant::now(),
+
             code: "fn activationFunction(kernelOutput: f32) -> vec4<f32> {
                 var condition: bool = kernelOutput == 3.0 || kernelOutput == 11.0 || kernelOutput == 12.0;
                 var r: f32 = select(0.0, 1.0, condition);
@@ -455,7 +473,6 @@ impl App for NcaApp {
         Ok(())
     }
 
-
     fn update(&mut self, _app_state: &mut AppState) -> Result<()> {
         
         if let ShaderState::Dirty = self.shader_state {
@@ -473,19 +490,19 @@ impl App for NcaApp {
 
         Ok(())
     }
-                
 
     fn render(&mut self, _app_state: &mut AppState, _encoder: &mut wgpu::CommandEncoder, _output_view: &wgpu::TextureView) -> Result<(), wgpu::SurfaceError> {
         
-        // init if needed
-        if self.init == false {
-            self.init = true;
+        if self.last_simulation_end.elapsed() > self.target_delta {
+            
+            // init if needed
+            if self.init == false {
+                self.init = true;
 
-            if self.init_simulation_data.need_update {
-                self.init_simulation_data.update(&_app_state.queue);
-            }
+                if self.init_simulation_data.need_update {
+                    self.init_simulation_data.update(&_app_state.queue);
+                }
 
-            {
                 let mut init_simulation_render_pass = _encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("Init Simulation Render Pass"),
                     color_attachments: &[
@@ -504,34 +521,37 @@ impl App for NcaApp {
                 init_simulation_render_pass.set_bind_group(0, &self.init_simulation_data.bind_group, &[]);
                 init_simulation_render_pass.draw(0..3, 0..1);
             }
-        }
 
-        // simulation
-        {
-            if self.simulation_data.need_update {
-                self.simulation_data.update(&_app_state.queue);
+            // simulation
+            {
+                if self.simulation_data.need_update {
+                    self.simulation_data.update(&_app_state.queue);
+                }
+
+                let mut simulation_render_pass = _encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Simulation Render Pass"),
+                    color_attachments: &[
+                        wgpu::RenderPassColorAttachment {
+                        view: self.simulation_textures.get_target_texture_view(),
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(self.clear_color),
+                            store: true,
+                        },
+                    }],
+                    depth_stencil_attachment: None,
+                });
+                
+                simulation_render_pass.set_pipeline(&self.simulation_render_pipeline);
+                let bind_group: &wgpu::BindGroup = if self.simulation_textures.state { &self.bind_group_simulation_pong } else { &self.bind_group_simulation_ping };
+                simulation_render_pass.set_bind_group(0, bind_group, &[]);
+                simulation_render_pass.set_bind_group(1, &self.simulation_data.bind_group, &[]);
+                simulation_render_pass.draw(0..3, 0..1);
             }
 
-            let mut simulation_render_pass = _encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Simulation Render Pass"),
-                color_attachments: &[
-                    wgpu::RenderPassColorAttachment {
-                    view: self.simulation_textures.get_target_texture_view(),
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(self.clear_color),
-                        store: true,
-                    },
-                }],
-                depth_stencil_attachment: None,
-            });
-            
-            simulation_render_pass.set_pipeline(&self.simulation_render_pipeline);
-            let bind_group: &wgpu::BindGroup = if self.simulation_textures.state { &self.bind_group_simulation_pong } else { &self.bind_group_simulation_ping };
-            simulation_render_pass.set_bind_group(0, bind_group, &[]);
-            simulation_render_pass.set_bind_group(1, &self.simulation_data.bind_group, &[]);
-            simulation_render_pass.draw(0..3, 0..1);
-        }
+            self.last_simulation_end = Instant::now();
+            self.simulation_textures.toogle_state();
+        };
 
         // render simulation on screen
         {
@@ -570,8 +590,6 @@ impl App for NcaApp {
             screen_render_pass.set_bind_group(0, bind_group, &[]);
             screen_render_pass.draw(0..3, 0..1);
         }
-        
-        self.simulation_textures.toogle_state();
         
         Ok(())
     }
