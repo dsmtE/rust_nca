@@ -168,9 +168,9 @@ impl App for NcaApp {
         let simulation_uniforms = SimulationData::new(&_app_state.device, &simulation_size);
 
         let simulation_sampler = _app_state.device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            address_mode_u: wgpu::AddressMode::Repeat,
+            address_mode_v: wgpu::AddressMode::Repeat,
+            address_mode_w: wgpu::AddressMode::Repeat,
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
             mipmap_filter: wgpu::FilterMode::Nearest,
@@ -584,9 +584,9 @@ impl App for NcaApp {
             );
 
             screen_render_pass.set_pipeline(&self.screen_render_pipeline);
-            // let bind_group: &wgpu::BindGroup = if self.simulation_textures.state { &self.bind_group_display_ping } else { &self.bind_group_display_pong };
+            let bind_group: &wgpu::BindGroup = if self.simulation_textures.state { &self.bind_group_display_pong } else { &self.bind_group_display_ping };
             // TODO: why it's blinking on switch bindgroup ?
-            let bind_group: &wgpu::BindGroup = &self.bind_group_display_ping;
+            // let bind_group: &wgpu::BindGroup = &self.bind_group_display_ping;
             screen_render_pass.set_bind_group(0, bind_group, &[]);
             screen_render_pass.draw(0..3, 0..1);
         }
