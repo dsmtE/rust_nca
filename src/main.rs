@@ -4,6 +4,7 @@ mod utils;
 mod simulation_data;
 mod syntax_highlighting;
 mod egui_widgets;
+mod preset;
 
 use nca_app::NcaApp;
 fn main() {

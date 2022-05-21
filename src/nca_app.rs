@@ -14,7 +14,9 @@ use crate::{
     utils::ping_pong_texture::PingPongTexture,
     simulation_data::{SimulationData, InitSimulationData},
     egui_widgets::{UiWidget, CodeEditor},
+    preset,
 };
+
 
 #[derive(Default)]
 pub struct Viewport {
@@ -72,6 +74,22 @@ pub struct NcaApp {
 }
 
 impl NcaApp {
+    
+    pub fn load_preset(&mut self, filepath: &str) -> Result<()> {
+        let preset: preset::Preset = preset::load_preset(filepath)?;
+        
+        self.simulation_data.uniform.kernel = preset.kernel;
+        self.simulation_data.need_update = true;
+        Ok(())
+    }
+
+    pub fn save_preset(&self, filepath: &str) ->std::io::Result<()> {
+        let mut current_preset = preset::Preset {
+            kernel: self.simulation_data.uniform.kernel
+        };
+
+        preset::save_preset(filepath, &current_preset)
+    }
 
     pub fn generate_simulation_pipeline(&mut self, device: &mut wgpu::Device, surface_configuration: &wgpu::SurfaceConfiguration) -> Result<wgpu::RenderPipeline, wgpu::Error> {
         let shader_code: String = include_str!("shaders/simulationBase.wgsl").replace("[functionTemplate]", &self.activation_code);
@@ -374,10 +392,10 @@ impl App for NcaApp {
                 egui::menu::bar(ui, |ui| {
                     ui.menu_button("File", |ui| {
                         if ui.button("Open").clicked() {
-                            // …
+                            self.load_preset("testSave.json");
                         }
-                        if ui.button("Quit").clicked() {
-                            // TODO exit
+                        if ui.button("Save").clicked() {
+                            self.save_preset("testSave.json");
                         }
                     });
                 });
