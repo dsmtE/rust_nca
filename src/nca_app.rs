@@ -65,7 +65,7 @@ pub struct NcaApp {
     target_delta: Duration,
     last_simulation_end: Instant,
 
-    code: String,
+    activation_code: String,
     shader_state: ShaderState,
 
     display_frames_mode: DisplayFramesMode,
@@ -82,7 +82,7 @@ impl NcaApp {
     }
 
     pub fn generate_simulation_pipeline(&mut self, device: &mut wgpu::Device, surface_configuration: &wgpu::SurfaceConfiguration) -> Result<wgpu::RenderPipeline, wgpu::Error> {
-        let shader_code: String = include_str!("shaders/simulationBase.wgsl").replace("[functionTemplate]", &self.code);
+        let shader_code: String = include_str!("shaders/simulationBase.wgsl").replace("[functionTemplate]", &self.activation_code);
             
         let (tx, rx) = std::sync::mpsc::channel::<wgpu::Error>();
         device.on_uncaptured_error(move |e: wgpu::Error| {
@@ -342,7 +342,7 @@ impl App for NcaApp {
             target_delta: Duration::from_secs_f64(1.0 / 30.0),
             last_simulation_end: Instant::now(),
 
-            code: "fn activationFunction(kernelOutput: f32) -> vec4<f32> {
+            activation_code: "fn activationFunction(kernelOutput: f32) -> vec4<f32> {
                 var condition: bool = kernelOutput == 3.0 || kernelOutput == 11.0 || kernelOutput == 12.0;
                 var r: f32 = select(0.0, 1.0, condition);
                 return vec4<f32>(r, r, r, 1.0);
@@ -445,7 +445,7 @@ impl App for NcaApp {
                 .default_open(true)
                 .show(ui, |ui| {
                     ui.separator();
-                    let mut code_editor = CodeEditor::new(&mut self.code, "rs", Some(15));
+                    let mut code_editor = CodeEditor::new(&mut self.activation_code, "rs", Some(15));
                     code_editor.show(ui);
 
                     let code_to_paste: Option<String> = _ctx.input().events.iter().find_map(|e| match e {
@@ -454,7 +454,7 @@ impl App for NcaApp {
                     });
             
                     if let Some(new_code) = code_to_paste {
-                        self.code = new_code;
+                        self.activation_code = new_code;
                     }
             
                     if let ShaderState::CompilationFail(error) = &self.shader_state {
