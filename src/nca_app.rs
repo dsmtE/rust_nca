@@ -73,14 +73,6 @@ pub struct NcaApp {
 
 impl NcaApp {
 
-    pub fn set_target_rate<R: Into<f64>>(&mut self, target_rate: R) {
-        self.target_delta = Duration::from_secs_f64(1.0 / target_rate.into());
-    }
-
-    pub fn target_rate(&self) -> f64 {
-        1.0 / self.target_delta.as_secs_f64()
-    }
-
     pub fn generate_simulation_pipeline(&mut self, device: &mut wgpu::Device, surface_configuration: &wgpu::SurfaceConfiguration) -> Result<wgpu::RenderPipeline, wgpu::Error> {
         let shader_code: String = include_str!("shaders/simulationBase.wgsl").replace("[functionTemplate]", &self.activation_code);
             
@@ -480,6 +472,24 @@ impl App for NcaApp {
                                 ui.selectable_value(&mut self.display_frames_mode, DisplayFramesMode::Odd, "Odd");
                             }
                         );
+                    });
+                    
+                    ui.horizontal(|ui| {
+                        ui.label("Target Simulation rate: ");
+                        ui.add(
+                            egui::DragValue::from_get_set(|new_value: Option<f64>| {
+                                if let Some(value) = new_value {
+                                    self.target_delta = Duration::from_secs_f64(1.0 / value.max(1.0));
+                                }
+                        
+                                1.0 / self.target_delta.as_secs_f64()
+                            })
+                            .speed(1.0)
+                            .min_decimals(1)
+                            .max_decimals(60)
+                        );
+
+                        ui.label(" fps");
                     });
                 });
 
