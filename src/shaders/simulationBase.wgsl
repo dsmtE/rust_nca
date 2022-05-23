@@ -16,7 +16,8 @@ struct SimulationUniforms {
 var<uniform> simulation_uniforms: SimulationUniforms;
 
 fn getCoords(coord: vec2<f32>, offset: vec2<f32>) -> vec2<f32> {
-    return (coord + simulation_uniforms.pixel_size * offset) % vec2<f32>(1.0);
+    let flippedCoord = vec2<f32>(coord.x, 1.0 - coord.y);
+    return (flippedCoord + simulation_uniforms.pixel_size * offset) % vec2<f32>(1.0);
 }
 
 [functionTemplate]
