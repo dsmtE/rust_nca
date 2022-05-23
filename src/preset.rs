@@ -4,15 +4,23 @@ use std::path::Path;
 use std::io::{Read, Write};
 use anyhow::{Context};
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+use crate::nca_app::DisplayFramesMode;
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Preset {
     pub kernel: [f32; 9],
+    pub activation_code: String,
+    pub display_frames_mode: DisplayFramesMode,
 }
 
 impl Default for Preset {
     fn default() -> Self {
         Preset {
             kernel: [1., 1., 1., 1., 9., 1., 1., 1., 1.],
+            activation_code: "fn activationFunction(kernelOutput: f32) -> vec4<f32> {
+                return vec4<f32>(kernelOutput, kernelOutput, kernelOutput, 1.0);
+            }".to_owned(),
+            display_frames_mode: DisplayFramesMode::All,
         }
     }
 }

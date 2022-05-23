@@ -10,13 +10,16 @@ use skeleton_app::{App, AppState};
 
 use epi;
 
+
+use std::collections::HashMap;
+use serde::{Serialize, Deserialize};
+
 use crate::{
     utils::ping_pong_texture::PingPongTexture,
     simulation_data::{SimulationData, InitSimulationData},
     egui_widgets::{UiWidget, CodeEditor},
-    preset,
+    preset::{Preset, load_preset, save_preset},
 };
-
 
 #[derive(Default)]
 pub struct Viewport {
@@ -34,7 +37,7 @@ pub enum ShaderState {
     CompilationFail(String),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 pub enum DisplayFramesMode {
     All,
     Evens,
@@ -42,6 +45,7 @@ pub enum DisplayFramesMode {
 }
 
 pub struct NcaApp {
+    default_presets: HashMap<String, Preset>,
     clear_color: wgpu::Color,
 
     primitive_state: wgpu::PrimitiveState,
@@ -75,20 +79,35 @@ pub struct NcaApp {
 
 impl NcaApp {
     
-    pub fn load_preset(&mut self, filepath: &str) -> Result<()> {
-        let preset: preset::Preset = preset::load_preset(filepath)?;
+    pub fn load_preset_from_file(&mut self, filepath: &str) -> Result<()> {
+        let preset:Preset = load_preset(filepath)?;
         
         self.simulation_data.uniform.kernel = preset.kernel;
         self.simulation_data.need_update = true;
         Ok(())
     }
 
+    pub fn load_preset(&mut self, preset: &Preset) -> Result<()> {
+        self.simulation_data.uniform.kernel = preset.kernel;
+        self.simulation_data.need_update = true;
+
+        self.activation_code = preset.activation_code.clone();
+        self.shader_state = ShaderState::Dirty;
+
+        self.display_frames_mode = preset.display_frames_mode.clone();
+
+        Ok(())
+    }
+    
+
     pub fn save_preset(&self, filepath: &str) ->std::io::Result<()> {
-        let mut current_preset = preset::Preset {
-            kernel: self.simulation_data.uniform.kernel
+        let mut current_preset = Preset {
+            kernel: self.simulation_data.uniform.kernel,
+            activation_code: self.activation_code.clone(),
+            display_frames_mode: self.display_frames_mode.clone(),
         };
 
-        preset::save_preset(filepath, &current_preset)
+        save_preset(filepath, &current_preset)
     }
 
     pub fn generate_simulation_pipeline(&mut self, device: &mut wgpu::Device, surface_configuration: &wgpu::SurfaceConfiguration) -> Result<wgpu::RenderPipeline, wgpu::Error> {
@@ -326,7 +345,34 @@ impl App for NcaApp {
             multiview: None,
         });
         
+        let default_presets: HashMap<String, Preset>  = HashMap::from([
+            ("Game Of life".to_owned(), Preset{
+                kernel: [1., 1., 1., 1., 9., 1., 1., 1., 1.],
+                activation_code: "
+fn activationFunction(x: f32) -> vec4<f32> {
+    var condition: bool = x == 3.0 || x == 11.0 || x == 12.0;
+    var r: f32 = select(0.0, 1.0, condition);
+    return vec4<f32>(r, r, r, 1.0);
+}".to_owned(),
+                display_frames_mode: DisplayFramesMode::All,
+            }),
+            ("Slime".to_owned(), Preset{
+                kernel: [0.8, -0.85, 0.8, -0.85, -0.2, -0.85, 0.8, -0.85, 0.8],
+                activation_code: "
+// an inverted gaussian function, 
+// where f(0) = 0. 
+// Graph: https://www.desmos.com/calculator/torawryxnq
+
+fn activationFunction(x: f32) -> vec4<f32> {
+    var r: f32 = -1./(0.89*pow(x, 2.)+1.)+1.;
+    return vec4<f32>(r, r, r, 1.0);
+}".to_owned(),
+                display_frames_mode: DisplayFramesMode::Evens,
+            }),
+        ]);
+
         Self {
+            default_presets,
             clear_color: wgpu::Color { r: 0.1, g: 0.2, b: 0.3, a: 1.0 },
 
             primitive_state,
@@ -392,14 +438,28 @@ impl App for NcaApp {
                 egui::menu::bar(ui, |ui| {
                     ui.menu_button("File", |ui| {
                         if ui.button("Open").clicked() {
-                            self.load_preset("testSave.json");
+                            self.load_preset_from_file("testSave.json");
                         }
                         if ui.button("Save").clicked() {
                             self.save_preset("testSave.json");
                         }
                     });
-                });
 
+                    ui.menu_button("Preset", |ui| {
+                        egui::ScrollArea::vertical().show(ui, |ui| {
+                            let mut preset_to_apply: Option<Preset> = None;
+                            for (name, preset) in self.default_presets.iter() {
+                                if ui.button(name).clicked() {
+                                    preset_to_apply = Some(preset.clone());
+                                }
+                            }
+
+                            if let Some(preset) = preset_to_apply {
+                                self.load_preset(&preset);
+                            }
+                        });
+                    });
+                });
             });
 
         egui::SidePanel::left("left_panel")
