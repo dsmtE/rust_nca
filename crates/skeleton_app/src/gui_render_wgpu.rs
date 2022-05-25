@@ -72,7 +72,7 @@ impl Gui {
     }
 
     pub fn end_frame(&mut self, window: &Window) -> egui::FullOutput {
-        let frame_time = (Instant::now() - self.last_frame_start).as_secs_f64() as f32;
+        let frame_time = self.last_frame_start.elapsed().as_secs_f32();
         self.previous_frame_time = Some(frame_time);
 
         self.platform.end_frame(Some(&window))
