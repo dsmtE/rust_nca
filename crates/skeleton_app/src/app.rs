@@ -13,7 +13,10 @@ use winit::{
 
 use anyhow::Result;
 
-use crate::gui_render_wgpu::{Gui, GuiRenderWgpu, ScreenDescriptor};
+use crate::{
+    gui_render_wgpu::{Gui, GuiRenderWgpu, ScreenDescriptor}, 
+    input::{InputsState, SystemState, WinitEventHandler},
+};
 
 use spin_sleep::LoopHelper;
 
@@ -29,7 +32,16 @@ pub struct AppState {
     pub gui: Gui,
     pub gui_render: GuiRenderWgpu,
 
+    pub input_state: InputsState,
+    pub system_state: SystemState,
+
     pub loop_helper:  LoopHelper,
+}
+
+impl AppState {
+    pub fn set_fullscreen(&mut self) {
+        self.window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(self.window.primary_monitor())));
+    }
 }
 
 pub trait App {
@@ -59,11 +71,12 @@ pub trait App {
         Ok(())
     }
 
-    fn handle_events(&mut self, _app_state: &mut AppState, _event: &Event<()>) -> Result<()> {
+    fn handle_event(&mut self, _app_state: &mut AppState, _event: &Event<()>) -> Result<()> {
         Ok(())
     }
 
 }
+
 
 pub struct AppConfig {
     pub is_resizable: bool,
@@ -150,6 +163,10 @@ pub fn run_application<T: App + 'static>(config: AppConfig) -> Result<()> {
 
     let gui_render = GuiRenderWgpu::new(&device, config.format, 1);
 
+    let loop_helper = LoopHelper::builder()
+    .report_interval_s(1.0)
+    .build_with_target_rate(60);
+
     let mut app_state = AppState {
         window: window,
 
@@ -161,10 +178,11 @@ pub fn run_application<T: App + 'static>(config: AppConfig) -> Result<()> {
     
         gui: gui,
         gui_render: gui_render,
+        
+        input_state: InputsState::default(),
+        system_state: SystemState::new(window_dimensions),
 
-        loop_helper: LoopHelper::builder()
-        .report_interval_s(1.0)
-        .build_with_target_rate(60)
+        loop_helper,
     };
 
     let mut app = T::create(&mut app_state);
@@ -185,8 +203,10 @@ fn run_loop(
 ) -> Result<()> {
     *control_flow = ControlFlow::Poll;
 
+    app_state.input_state.handle_event(&event);
+    app_state.system_state.handle_event(&event);
     app_state.gui.handle_event(&event);
-    app.handle_events(app_state, &event)?;
+    app.handle_event(app_state, &event)?;
 
     match event {
         Event::WindowEvent { ref event, .. } => match event {

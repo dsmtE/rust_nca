@@ -408,7 +408,7 @@ fn activationFunction(x: f32) -> vec4<f32> {
         }
     }
     
-    fn handle_events(&mut self, _app_state: &mut AppState, _event: &Event<()>) -> Result<()> {
+    fn handle_event(&mut self, _app_state: &mut AppState, _event: &Event<()>) -> Result<()> {
         match _event {
             Event::WindowEvent { ref event, .. } => match event {
                 WindowEvent::CursorMoved { position, .. } => {
