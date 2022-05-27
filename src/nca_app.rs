@@ -431,6 +431,32 @@ fn activationFunction(x: f32) -> vec4<f32> {
 }".to_owned(),
                 display_frames_mode: DisplayFramesMode::All,
             }),
+            ("test".to_owned(), Preset{
+                kernel: [
+                    0.5669999718666077, -0.7149999737739563, 0.5669999718666077,
+                    -0.7149999737739563, 0.6370000243186951, -0.7149999737739563,
+                    0.5669999718666077, -0.7149999737739563, 0.5669999718666077
+                ],
+                activation_code: "
+fn activationFunction(x: f32) -> vec4<f32> {
+    var r: f32 = abs(x);
+    return vec4<f32>(r, r, r, 1.0);
+}".to_owned(),
+                display_frames_mode: DisplayFramesMode::Evens,
+            }),
+            ("test2".to_owned(), Preset{
+                kernel: [
+                    91.627685546875, -59.281097412109375, 91.627685546875, 
+                    -59.281097412109375, -42.35920715332031, -59.281097412109375, 
+                    91.627685546875, -59.281097412109375, 91.627685546875
+                ],
+                activation_code: "
+fn activationFunction(x: f32) -> vec4<f32> {
+    var r: f32 = (exp(2.*x) - 1.)/(exp(2.*x) + 1.);
+    return vec4<f32>(r, r, r, 1.0);
+}".to_owned(),
+                display_frames_mode: DisplayFramesMode::Evens,
+            }),
         ]);
 
         Self {
