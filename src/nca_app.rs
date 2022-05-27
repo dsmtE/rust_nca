@@ -369,6 +369,63 @@ fn activationFunction(x: f32) -> vec4<f32> {
 }".to_owned(),
                 display_frames_mode: DisplayFramesMode::Evens,
             }),
+            ("Waves".to_owned(), Preset{
+                kernel: [0.564599, -0.715900,  0.564599, -0.715900,  0.626900, -0.715900,  0.564599, -0.715900, 0.564599],
+                activation_code: "
+fn activationFunction(x: f32) -> vec4<f32> {
+    var r: f32 = abs(1.2*x);
+    return vec4<f32>(r, r, r, 1.0);
+}".to_owned(),
+                display_frames_mode: DisplayFramesMode::All,
+            }),
+            ("Stars".to_owned(), Preset{
+                kernel: [0.56459,-0.71590,0.56459,-0.75859,0.62690,-0.75859,0.56459,-0.71590,0.56459],
+                activation_code: "
+fn activationFunction(x: f32) -> vec4<f32> {
+    var r: f32 = abs(x);
+    return vec4<f32>(r, r, r, 1.0);
+}".to_owned(),
+                display_frames_mode: DisplayFramesMode::All,
+            }),
+            ("Pathways".to_owned(), Preset{
+                kernel: [0., 1., 0., 1., 1., 1., 0., 1., 0.],
+                activation_code: "
+fn gaussian(x: f32, b: f32) -> f32{
+    return 1./pow(2., (pow(x-b, 2.)));
+}
+
+fn activationFunction(x: f32) -> vec4<f32> {
+    var r: f32 = gaussian(x, 3.5);
+    return vec4<f32>(r, r, r, 1.0);
+}".to_owned(),
+                display_frames_mode: DisplayFramesMode::All,
+            }),
+            ("Mitosis".to_owned(), Preset{
+                kernel: [-0.939,0.879,-0.939,0.879,0.4,0.879,-0.939,0.879,-0.939],
+                activation_code: "
+// an inverted gaussian function, 
+// where f(0) = 0. 
+// Graph: https://www.desmos.com/calculator/torawryxnq
+
+fn activationFunction(x: f32) -> vec4<f32> {
+    var r: f32 = -1./(0.9*pow(x, 2.)+1.)+1.;
+    return vec4<f32>(r, r, r, 1.0);
+}".to_owned(),
+                display_frames_mode: DisplayFramesMode::All,
+            }),
+            ("Blob".to_owned(), Preset{
+                kernel: [
+                    0.7795687913894653, -0.7663648128509521, 0.7795687913894653, 
+                    -0.7663648128509521, -0.29899999499320984, -0.7663648128509521, 
+                    0.7795687913894653, -0.7663648128509521, 0.7795687913894653
+                ],
+                activation_code: "
+fn activationFunction(x: f32) -> vec4<f32> {
+    var r: f32 = -1./pow(2., (pow(x, 2.)))+1.;
+    return vec4<f32>(r, r, r, 1.0);
+}".to_owned(),
+                display_frames_mode: DisplayFramesMode::All,
+            }),
         ]);
 
         Self {
