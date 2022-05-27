@@ -10,15 +10,17 @@ use skeleton_app::{App, AppState};
 
 use epi;
 
-
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
+
+use nalgebra_glm as glm;
 
 use crate::{
     utils::ping_pong_texture::PingPongTexture,
     simulation_data::{SimulationData, InitSimulationData},
     egui_widgets::{UiWidget, CodeEditor},
     preset::{Preset, load_preset, save_preset},
+    view_data::ViewData,
 };
 
 #[derive(Default)]
@@ -75,6 +77,8 @@ pub struct NcaApp {
     shader_state: ShaderState,
 
     display_frames_mode: DisplayFramesMode,
+
+    view_data: ViewData,
 }
 
 impl NcaApp {
@@ -99,7 +103,6 @@ impl NcaApp {
         Ok(())
     }
     
-
     pub fn save_preset(&self, filepath: &str) ->std::io::Result<()> {
         let mut current_preset = Preset {
             kernel: self.simulation_data.uniform.kernel,
@@ -229,6 +232,8 @@ impl App for NcaApp {
             ..Default::default()
         });
 
+        let view_data = ViewData::new(&_app_state.device);
+
         let (bind_group_display_ping, bind_group_display_pong) = simulation_textures.create_binding_group(&_app_state.device, &display_sampler);
         let (bind_group_simulation_ping, bind_group_simulation_pong) = simulation_textures.create_binding_group(&_app_state.device, &simulation_sampler);
 
@@ -268,7 +273,7 @@ impl App for NcaApp {
             label: Some("Screen Render Pipeline"),
             layout: Some(&_app_state.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Screen Pipeline Layout"),
-                bind_group_layouts: &[&simulation_textures.bind_group_layout],
+                bind_group_layouts: &[&simulation_textures.bind_group_layout, &view_data.bind_group_layout],
                 push_constant_ranges: &[],
             })),
             vertex: wgpu::VertexState {
@@ -462,6 +467,7 @@ fn activationFunction(x: f32) -> vec4<f32> {
             }".to_owned(),
             shader_state : ShaderState::Compiled,
             display_frames_mode: DisplayFramesMode::All,
+            view_data,
         }
     }
     
@@ -478,7 +484,29 @@ fn activationFunction(x: f32) -> vec4<f32> {
                     };
                 }
                 WindowEvent::MouseWheel { delta: MouseScrollDelta::LineDelta(_, y), .. } => {
-                    println!("ScrollDelta {}", y);
+                    
+                    let window_scale_factor =  _app_state.window.scale_factor() as f32;
+
+                    let mouse_pos = &_app_state.input_state.mouse.position;
+                    let viewport_min_position = glm::vec2(self.ui_central_viewport.x, self.ui_central_viewport.y) * window_scale_factor;
+                    let viewport_size = glm::vec2(self.ui_central_viewport.width, self.ui_central_viewport.height) * window_scale_factor;
+                    let normalized_mouse_pos_within_viewport = (*mouse_pos - viewport_min_position).zip_map(&viewport_size, |y, x| y / x);
+                    // let mouse_pos_within_simulation = self.view_data.uniform.center + (normalized_mouse_pos_within_viewport - glm::vec2(0.5, 0.5)) * self.view_data.uniform.zoom_level;
+                    
+                    let old_zoom_level = self.view_data.uniform.zoom_level;
+                    self.view_data.uniform.zoom_level = (self.view_data.uniform.zoom_level * 1.08_f32.powf(-*y)).min(1.0);
+                    
+                    let zoom_delta = old_zoom_level - self.view_data.uniform.zoom_level;
+                    if *y > 0. {
+                        self.view_data.uniform.center += (normalized_mouse_pos_within_viewport - glm::vec2(0.5, 0.5)) * zoom_delta;
+                    }else {
+                        if old_zoom_level != 1.0 {
+                            self.view_data.uniform.center += (glm::vec2(0.5, 0.5) - self.view_data.uniform.center)/(old_zoom_level-1.0) * zoom_delta;
+                        }
+                    }
+                    
+                    self.view_data.need_update = true;
+
                 }
                 _ => {}
             }
@@ -733,6 +761,10 @@ fn activationFunction(x: f32) -> vec4<f32> {
 
         // render simulation on screen
         {
+            if self.view_data.need_update {
+                self.view_data.update(&_app_state.queue);
+            }
+
             let mut screen_render_pass = _encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Screen Render Pass"),
                 color_attachments: &[
@@ -772,6 +804,7 @@ fn activationFunction(x: f32) -> vec4<f32> {
             // TODO: why it's blinking on switch bindgroup ?
             // let bind_group: &wgpu::BindGroup = &self.bind_group_display_ping;
             screen_render_pass.set_bind_group(0, bind_group, &[]);
+            screen_render_pass.set_bind_group(1, &self.view_data.bind_group, &[]);
             screen_render_pass.draw(0..3, 0..1);
         }
         
