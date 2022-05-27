@@ -27,6 +27,10 @@ serde_json = "1.0"
 enum-map = { version = "2", features = ["serde"] }
 syntect = { version = "5.0.0", optional = true, default-features = false, features = ["default-fancy"] }
 
+nalgebra-glm = { version = "0.17.0", features = ["serde-serialize"] }
+
+crevice = { version = "0.10.0", features = ["nalgebra"] }
+
 [features]
 default = ["syntect"]
 syntax_highlighting = ["syntect"]
