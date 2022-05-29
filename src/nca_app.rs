@@ -113,8 +113,12 @@ impl NcaApp {
         save_preset(filepath, &current_preset)
     }
 
+    pub fn generate_simulation_shader(&self) -> String {
+        include_str!("shaders/simulationBase.wgsl").replace("[functionTemplate]", &self.activation_code)
+    }
+
     pub fn generate_simulation_pipeline(&mut self, device: &mut wgpu::Device, surface_configuration: &wgpu::SurfaceConfiguration) -> Result<wgpu::RenderPipeline, wgpu::Error> {
-        let shader_code: String = include_str!("shaders/simulationBase.wgsl").replace("[functionTemplate]", &self.activation_code);
+        let shader_code: String = self.generate_simulation_shader();
             
         let (tx, rx) = std::sync::mpsc::channel::<wgpu::Error>();
         device.on_uncaptured_error(move |e: wgpu::Error| {
