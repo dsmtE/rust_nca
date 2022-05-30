@@ -53,7 +53,7 @@ pub enum DisplayFramesMode {
 pub struct NcaApp {
     presets_list: HashMap<String, Preset>,
     clear_color: wgpu::Color,
-    Simulation_size_state: SimulationSizeState,
+    simulation_size_state: SimulationSizeState,
     primitive_state: wgpu::PrimitiveState,
     multisample_state: wgpu::MultisampleState,
 
@@ -86,11 +86,11 @@ pub struct NcaApp {
     view_data: ViewData,
 }
 
-fn GenerateSimulationShader(activation_code: &str) -> String {
+fn generate_simulation_shader(activation_code: &str) -> String {
     include_str!("shaders/simulationBase.wgsl").replace("[functionTemplate]", activation_code)
 }
 
-fn GetPresets() -> HashMap<String, Preset> {
+fn get_presets() -> HashMap<String, Preset> {
     HashMap::from([
         (
             "Game Of life".to_owned(),
@@ -181,7 +181,7 @@ return vec4<f32>(r, r, r, 1.0);
                 activation_code: "
 // an inverted gaussian function, 
 // where f(0) = 0. 
-// Graph: https://www.desmos.com/calculator/torawryxnq\
+// Graph: https://www.desmos.com/calculator/torawryxnq
                                   
 
 fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
@@ -286,7 +286,7 @@ impl NcaApp {
     }
 
     pub fn save_preset(&self, filepath: &str) -> std::io::Result<()> {
-        let mut current_preset = Preset {
+        let current_preset = Preset {
             kernel: self.simulation_data.uniform.kernel,
             activation_code: self.activation_code.clone(),
             display_frames_mode: self.display_frames_mode.clone(),
@@ -300,7 +300,7 @@ impl NcaApp {
         device: &mut wgpu::Device,
         surface_configuration: &wgpu::SurfaceConfiguration,
     ) -> Result<(), wgpu::Error> {
-        let shader_code: String = GenerateSimulationShader(&self.activation_code);
+        let shader_code: String = generate_simulation_shader(&self.activation_code);
 
         let (tx, rx) = std::sync::mpsc::channel::<wgpu::Error>();
         device.on_uncaptured_error(move |e: wgpu::Error| {
@@ -480,7 +480,7 @@ impl NcaApp {
             return Err(err);
         }
 
-        self.Simulation_size_state = SimulationSizeState::Compiled(new_simulation_size);
+        self.simulation_size_state = SimulationSizeState::Compiled(new_simulation_size);
         self.init = false;
         self.simulation_textures = simulation_textures;
         self.screen_render_pipeline = screen_render_pipeline;
@@ -497,7 +497,7 @@ impl NcaApp {
 
 impl App for NcaApp {
     fn create(_app_state: &mut AppState) -> Self {
-        let presets_list = GetPresets();
+        let presets_list = get_presets();
 
         let (_, default_preset) = presets_list.iter().next().unwrap();
         let activation_code = default_preset.activation_code.clone();
@@ -578,7 +578,7 @@ impl App for NcaApp {
                 source: wgpu::ShaderSource::Wgsl(include_str!("shaders/Screen.wgsl").into()),
             });
 
-        let shader_code: String = GenerateSimulationShader(&activation_code);
+        let shader_code: String = generate_simulation_shader(&activation_code);
         let simulation_shader =
             _app_state
                 .device
@@ -718,7 +718,7 @@ impl App for NcaApp {
         Self {
             presets_list,
             clear_color: wgpu::Color { r: 0.1, g: 0.2, b: 0.3, a: 1.0 },
-            Simulation_size_state: SimulationSizeState::Compiled(simulation_size),
+            simulation_size_state: SimulationSizeState::Compiled(simulation_size),
             primitive_state,
             multisample_state,
 
@@ -848,10 +848,10 @@ impl App for NcaApp {
                         ui.add(
                             egui::DragValue::from_get_set(|optional_value: Option<f64>| {
                                 if let Some(v) = optional_value {
-                                    self.Simulation_size_state =
+                                    self.simulation_size_state =
                                         SimulationSizeState::Dirty([v as u32, v as u32]);
                                 }
-                                match self.Simulation_size_state {
+                                match self.simulation_size_state {
                                     SimulationSizeState::Compiled(size) => size[0] as f64,
                                     SimulationSizeState::Dirty(size) => size[0] as f64,
                                 }
@@ -1031,7 +1031,7 @@ impl App for NcaApp {
             }
         }
 
-        if let SimulationSizeState::Dirty(new_simulation_size) = self.Simulation_size_state {
+        if let SimulationSizeState::Dirty(new_simulation_size) = self.simulation_size_state {
             match self.try_update_simulation_size(
                 new_simulation_size,
                 &mut _app_state.device,
