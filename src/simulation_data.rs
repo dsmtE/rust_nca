@@ -99,6 +99,11 @@ impl SimulationData {
         }
     }
 
+    pub fn set_simulation_size(&mut self, new_simulation_size : &[u32; 2]) {
+        self.uniform.pixel_size = new_simulation_size.map(|x| 1.0 / x as f32);
+        self.need_update = true;
+    }
+
     pub fn update(&mut self, queue: &wgpu::Queue) {
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.uniform]));
         self.need_update = false;

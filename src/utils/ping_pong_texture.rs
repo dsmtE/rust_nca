@@ -1,4 +1,3 @@
-use anyhow::Result;
 pub struct PingPongTexture {
     label: Option<&'static str>,
     // texture_ping: wgpu::Texture,
@@ -16,7 +15,7 @@ impl PingPongTexture {
         device: &wgpu::Device,
         descriptor: &wgpu::TextureDescriptor,
         label: Option<&'static str>, // Optional debug label. This will show up in graphics debuggers for easy identification.
-    ) -> Result<Self> {
+    ) -> Result<Self, wgpu::Error> {
 
         let texture_ping = device.create_texture(&descriptor);
         let texture_pong = device.create_texture(&descriptor);

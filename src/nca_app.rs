@@ -1,5 +1,6 @@
 use anyhow::Result;
 
+use wgpu::SurfaceConfiguration;
 use winit::{
     event::{Event, WindowEvent, MouseScrollDelta},
 };
@@ -39,6 +40,11 @@ pub enum ShaderState {
     CompilationFail(String),
 }
 
+pub enum SimulationSizeState {
+    Compiled([u32;2]),
+    Dirty([u32;2]),
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 pub enum DisplayFramesMode {
     All,
@@ -49,10 +55,11 @@ pub enum DisplayFramesMode {
 pub struct NcaApp {
     default_presets: HashMap<String, Preset>,
     clear_color: wgpu::Color,
-
+    Simulation_size_state: SimulationSizeState,
     primitive_state: wgpu::PrimitiveState,
     multisample_state: wgpu::MultisampleState,
 
+    simulation_shader: wgpu::ShaderModule,
     screen_shader: wgpu::ShaderModule,
 
     init_simulation_render_pipeline: wgpu::RenderPipeline,
@@ -117,7 +124,7 @@ impl NcaApp {
         include_str!("shaders/simulationBase.wgsl").replace("[functionTemplate]", &self.activation_code)
     }
 
-    pub fn generate_simulation_pipeline(&mut self, device: &mut wgpu::Device, surface_configuration: &wgpu::SurfaceConfiguration) -> Result<wgpu::RenderPipeline, wgpu::Error> {
+    pub fn try_generate_simulation_pipeline(&mut self, device: &mut wgpu::Device, surface_configuration: &wgpu::SurfaceConfiguration) -> Result<(), wgpu::Error> {
         let shader_code: String = self.generate_simulation_shader();
             
         let (tx, rx) = std::sync::mpsc::channel::<wgpu::Error>();
@@ -166,12 +173,137 @@ impl NcaApp {
         
         device.on_uncaptured_error(|e| panic!("{}", e));
         
-
         if let Ok(err) = rx.try_recv() {
             return Err(err);
         }
 
-        Ok(simulation_render_pipeline)
+        self.simulation_render_pipeline = simulation_render_pipeline;
+        self.shader_state = ShaderState::Compiled;
+
+        Ok(())
+    }
+
+    pub fn try_update_simulation_size(&mut self, new_simulation_size: [u32; 2], device: &mut wgpu::Device, surface_configuration: &SurfaceConfiguration)-> Result<(), wgpu::Error> {
+        
+        let (tx, rx) = std::sync::mpsc::channel::<wgpu::Error>();
+        device.on_uncaptured_error(move |e: wgpu::Error| {
+            tx.send(e).expect("sending error failed");
+        });
+
+        let texture_desc = wgpu::TextureDescriptor {
+            size: wgpu::Extent3d {
+                width: new_simulation_size[0],
+                height: new_simulation_size[1],
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Bgra8UnormSrgb,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            label: None,
+        };
+        
+        let simulation_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::Repeat,
+            address_mode_v: wgpu::AddressMode::Repeat,
+            address_mode_w: wgpu::AddressMode::Repeat,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            lod_min_clamp: 0.0,
+            lod_max_clamp: 0.0,
+            ..Default::default()
+        });
+
+        let display_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            lod_min_clamp: 0.0,
+            lod_max_clamp: 0.0,
+            ..Default::default()
+        });
+
+        let simulation_textures = PingPongTexture::from_descriptor(device, &texture_desc, Some("simulation"))?;
+        
+        let (bind_group_display_ping, bind_group_display_pong) = simulation_textures.create_binding_group(device, &display_sampler);
+        let (bind_group_simulation_ping, bind_group_simulation_pong) = simulation_textures.create_binding_group(device, &simulation_sampler);
+
+        let screen_render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Screen Render Pipeline"),
+            layout: Some(&device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Screen Pipeline Layout"),
+                bind_group_layouts: &[&simulation_textures.bind_group_layout, &self.view_data.bind_group_layout],
+                push_constant_ranges: &[],
+            })),
+            vertex: wgpu::VertexState {
+                module: &self.screen_shader,
+                entry_point: "vs_main",
+                buffers: &[],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &self.screen_shader,
+                entry_point: "fs_main",
+                targets: &[wgpu::ColorTargetState {
+                    format: surface_configuration.format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                }],
+            }),
+            primitive: self.primitive_state,
+            depth_stencil: None,
+            multisample: self.multisample_state,
+            multiview: None,
+        });
+
+        let simulation_render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Simulation Render Pipeline"),
+            layout: Some(&device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Simulation Pipeline Layout"),
+                bind_group_layouts: &[&simulation_textures.bind_group_layout, &self.simulation_data.bind_group_layout],
+                push_constant_ranges: &[],
+            })),
+            vertex: wgpu::VertexState {
+                module: &self.screen_shader,
+                entry_point: "vs_main",
+                buffers: &[],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &self.simulation_shader,
+                entry_point: "fs_main",
+                targets: &[wgpu::ColorTargetState {
+                    format: surface_configuration.format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                }],
+            }),
+            primitive: self.primitive_state,
+            depth_stencil: None,
+            multisample: self.multisample_state,
+            multiview: None,
+        });
+        
+        device.on_uncaptured_error(|e| panic!("{}", e));
+        
+        if let Ok(err) = rx.try_recv() {
+            return Err(err);
+        }
+        
+        self.Simulation_size_state = SimulationSizeState::Compiled(new_simulation_size);
+        self.init = false;
+        self.simulation_textures = simulation_textures;
+        self.screen_render_pipeline = screen_render_pipeline;
+        self.simulation_render_pipeline = simulation_render_pipeline;
+        self.bind_group_display_ping = bind_group_display_ping;
+        self.bind_group_display_pong = bind_group_display_pong;
+        self.bind_group_simulation_ping = bind_group_simulation_ping;
+        self.bind_group_simulation_pong = bind_group_simulation_pong;
+        self.simulation_data.set_simulation_size(&new_simulation_size);
+        Ok(())
     }
 }
 
@@ -190,7 +322,7 @@ impl App for NcaApp {
             max_depth: 1.0,
         };
 
-        let simulation_size: [u32; 2] = [200, 200];
+        let simulation_size: [u32; 2] = [2000, 2000];
         // Texture
         let texture_desc = wgpu::TextureDescriptor {
             size: wgpu::Extent3d {
@@ -466,11 +598,12 @@ fn activationFunction(x: f32) -> vec4<f32> {
         Self {
             default_presets,
             clear_color: wgpu::Color { r: 0.1, g: 0.2, b: 0.3, a: 1.0 },
-
+            Simulation_size_state : SimulationSizeState::Compiled(simulation_size),
             primitive_state,
             multisample_state,
 
             screen_shader,
+            simulation_shader,
 
             init_simulation_render_pipeline,
             simulation_render_pipeline,
@@ -582,6 +715,21 @@ fn activationFunction(x: f32) -> vec4<f32> {
             .show(&_ctx, |ui| {
                 ui.heading("Left Panel");
                 
+                egui::CollapsingHeader::new("Simulation settings")
+                .default_open(true)
+                .show(ui, |ui| {
+
+                    ui.add(egui::DragValue::from_get_set(|optional_value: Option<f64>| {
+                        if let Some(v) = optional_value {
+                            self.Simulation_size_state = SimulationSizeState::Dirty([v as u32, v as u32]);
+                        }
+                        match self.Simulation_size_state {
+                            SimulationSizeState::Compiled(size) => size[0] as f64,
+                            SimulationSizeState::Dirty(size) => size[0] as f64,
+                        }
+                    }).speed(1).prefix("simulation size: "));
+                });
+
                 egui::CollapsingHeader::new("Starting settings")
                 .default_open(true)
                 .show(ui, |ui| {
@@ -712,15 +860,22 @@ fn activationFunction(x: f32) -> vec4<f32> {
     fn update(&mut self, _app_state: &mut AppState) -> Result<()> {
         
         if let ShaderState::Dirty = self.shader_state {
-            match self.generate_simulation_pipeline(&mut _app_state.device, &_app_state.config) {
+            match self.try_generate_simulation_pipeline(&mut _app_state.device, &_app_state.config) {
                 Err(err) => match err {
                     wgpu::Error::OutOfMemory {..} => anyhow::bail!("Shader compilation gpu::Error::OutOfMemory"),
                     wgpu::Error::Validation { description, .. } => self.shader_state = ShaderState::CompilationFail(description),
                 }
-                Ok(simulation_render_pipeline) => {
-                    self.simulation_render_pipeline = simulation_render_pipeline;
-                    self.shader_state = ShaderState::Compiled;
+                Ok(()) => {}
+            }
+        }
+
+        if let SimulationSizeState::Dirty(new_simulation_size) = self.Simulation_size_state {
+            match self.try_update_simulation_size(new_simulation_size, &mut _app_state.device, &_app_state.config) {
+                Err(err) => match err {
+                    wgpu::Error::OutOfMemory {..} => anyhow::bail!("Shader compilation gpu::Error::OutOfMemory"),
+                    wgpu::Error::Validation { description, .. } => self.shader_state = ShaderState::CompilationFail(description),
                 }
+                Ok(()) => {}
             }
         }
 
@@ -831,8 +986,6 @@ fn activationFunction(x: f32) -> vec4<f32> {
                 DisplayFramesMode::Odd => &self.bind_group_display_ping,
             };
 
-            // TODO: why it's blinking on switch bindgroup ?
-            // let bind_group: &wgpu::BindGroup = &self.bind_group_display_ping;
             screen_render_pass.set_bind_group(0, bind_group, &[]);
             screen_render_pass.set_bind_group(1, &self.view_data.bind_group, &[]);
             screen_render_pass.draw(0..3, 0..1);
