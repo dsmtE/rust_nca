@@ -53,7 +53,7 @@ pub enum DisplayFramesMode {
 }
 
 pub struct NcaApp {
-    default_presets: HashMap<String, Preset>,
+    presets_list: HashMap<String, Preset>,
     clear_color: wgpu::Color,
     Simulation_size_state: SimulationSizeState,
     primitive_state: wgpu::PrimitiveState,
@@ -88,6 +88,122 @@ pub struct NcaApp {
     view_data: ViewData,
 }
 
+fn GenerateSimulationShader(activation_code: &str) -> String {
+    include_str!("shaders/simulationBase.wgsl").replace("[functionTemplate]", activation_code)
+}
+
+fn GetPresets() -> HashMap<String, Preset> {
+    HashMap::from([
+        ("Game Of life".to_owned(), Preset{
+            kernel: [1., 1., 1., 1., 9., 1., 1., 1., 1.],
+            activation_code: "
+fn activationFunction(x: f32) -> vec4<f32> {
+var condition: bool = x == 3.0 || x == 11.0 || x == 12.0;
+var r: f32 = select(0.0, 1.0, condition);
+return vec4<f32>(r, r, r, 1.0);
+}".to_owned(),
+            display_frames_mode: DisplayFramesMode::All,
+        }),
+        ("Slime".to_owned(), Preset{
+            kernel: [0.8, -0.85, 0.8, -0.85, -0.2, -0.85, 0.8, -0.85, 0.8],
+            activation_code: "
+// an inverted gaussian function, 
+// where f(0) = 0. 
+// Graph: https://www.desmos.com/calculator/torawryxnq
+
+fn activationFunction(x: f32) -> vec4<f32> {
+var r: f32 = -1./(0.89*pow(x, 2.)+1.)+1.;
+return vec4<f32>(r, r, r, 1.0);
+}".to_owned(),
+            display_frames_mode: DisplayFramesMode::Evens,
+        }),
+        ("Waves".to_owned(), Preset{
+            kernel: [0.564599, -0.715900,  0.564599, -0.715900,  0.626900, -0.715900,  0.564599, -0.715900, 0.564599],
+            activation_code: "
+fn activationFunction(x: f32) -> vec4<f32> {
+var r: f32 = abs(1.2*x);
+return vec4<f32>(r, r, r, 1.0);
+}".to_owned(),
+            display_frames_mode: DisplayFramesMode::All,
+        }),
+        ("Stars".to_owned(), Preset{
+            kernel: [0.56459,-0.71590,0.56459,-0.75859,0.62690,-0.75859,0.56459,-0.71590,0.56459],
+            activation_code: "
+fn activationFunction(x: f32) -> vec4<f32> {
+var r: f32 = abs(x);
+return vec4<f32>(r, r, r, 1.0);
+}".to_owned(),
+            display_frames_mode: DisplayFramesMode::All,
+        }),
+        ("Pathways".to_owned(), Preset{
+            kernel: [0., 1., 0., 1., 1., 1., 0., 1., 0.],
+            activation_code: "
+fn gaussian(x: f32, b: f32) -> f32{
+return 1./pow(2., (pow(x-b, 2.)));
+}
+
+fn activationFunction(x: f32) -> vec4<f32> {
+var r: f32 = gaussian(x, 3.5);
+return vec4<f32>(r, r, r, 1.0);
+}".to_owned(),
+            display_frames_mode: DisplayFramesMode::All,
+        }),
+        ("Mitosis".to_owned(), Preset{
+            kernel: [-0.939,0.879,-0.939,0.879,0.4,0.879,-0.939,0.879,-0.939],
+            activation_code: "
+// an inverted gaussian function, 
+// where f(0) = 0. 
+// Graph: https://www.desmos.com/calculator/torawryxnq
+
+fn activationFunction(x: f32) -> vec4<f32> {
+var r: f32 = -1./(0.9*pow(x, 2.)+1.)+1.;
+return vec4<f32>(r, r, r, 1.0);
+}".to_owned(),
+            display_frames_mode: DisplayFramesMode::All,
+        }),
+        ("Blob".to_owned(), Preset{
+            kernel: [
+                0.7795687913894653, -0.7663648128509521, 0.7795687913894653, 
+                -0.7663648128509521, -0.29899999499320984, -0.7663648128509521, 
+                0.7795687913894653, -0.7663648128509521, 0.7795687913894653
+            ],
+            activation_code: "
+fn activationFunction(x: f32) -> vec4<f32> {
+var r: f32 = -1./pow(2., (pow(x, 2.)))+1.;
+return vec4<f32>(r, r, r, 1.0);
+}".to_owned(),
+            display_frames_mode: DisplayFramesMode::All,
+        }),
+        ("test".to_owned(), Preset{
+            kernel: [
+                0.5669999718666077, -0.7149999737739563, 0.5669999718666077,
+                -0.7149999737739563, 0.6370000243186951, -0.7149999737739563,
+                0.5669999718666077, -0.7149999737739563, 0.5669999718666077
+            ],
+            activation_code: "
+fn activationFunction(x: f32) -> vec4<f32> {
+var r: f32 = abs(x);
+return vec4<f32>(r, r, r, 1.0);
+}".to_owned(),
+            display_frames_mode: DisplayFramesMode::Evens,
+        }),
+        ("test2".to_owned(), Preset{
+            kernel: [
+                91.627685546875, -59.281097412109375, 91.627685546875, 
+                -59.281097412109375, -42.35920715332031, -59.281097412109375, 
+                91.627685546875, -59.281097412109375, 91.627685546875
+            ],
+            activation_code: "
+fn activationFunction(x: f32) -> vec4<f32> {
+var r: f32 = (exp(2.*x) - 1.)/(exp(2.*x) + 1.);
+return vec4<f32>(r, r, r, 1.0);
+}".to_owned(),
+            display_frames_mode: DisplayFramesMode::Evens,
+        }),
+    ])
+
+}
+
 impl NcaApp {
     
     pub fn load_preset_from_file(&mut self, filepath: &str) -> Result<()> {
@@ -120,18 +236,14 @@ impl NcaApp {
         save_preset(filepath, &current_preset)
     }
 
-    pub fn generate_simulation_shader(&self) -> String {
-        include_str!("shaders/simulationBase.wgsl").replace("[functionTemplate]", &self.activation_code)
-    }
-
     pub fn try_generate_simulation_pipeline(&mut self, device: &mut wgpu::Device, surface_configuration: &wgpu::SurfaceConfiguration) -> Result<(), wgpu::Error> {
-        let shader_code: String = self.generate_simulation_shader();
+        let shader_code: String = GenerateSimulationShader(&self.activation_code);
             
         let (tx, rx) = std::sync::mpsc::channel::<wgpu::Error>();
         device.on_uncaptured_error(move |e: wgpu::Error| {
             tx.send(e).expect("sending error failed");
         });
-
+        
         let simulation_shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("Simulation Shader"),
             source: wgpu::ShaderSource::Wgsl(
@@ -311,6 +423,11 @@ impl App for NcaApp {
 
     fn create(_app_state: &mut AppState) -> Self {
         
+        let presets_list = GetPresets();
+
+        let (_, default_preset) = presets_list.iter().next().unwrap();
+        let activation_code = default_preset.activation_code.clone();
+
         let size = _app_state.window.inner_size();
 
         let ui_central_viewport = Viewport {
@@ -338,11 +455,13 @@ impl App for NcaApp {
             label: None,
         };
 
-        let init_simulation_uniforms = InitSimulationData::new(&_app_state.device);
+        let init_simulation_data = InitSimulationData::new(&_app_state.device);
         
         let simulation_textures = PingPongTexture::from_descriptor(&_app_state.device, &texture_desc, Some("simulation")).unwrap();
         
-        let simulation_uniforms = SimulationData::new(&_app_state.device, &simulation_size);
+        let mut simulation_data = SimulationData::new(&_app_state.device, &simulation_size);
+        simulation_data.uniform.kernel = default_preset.kernel;
+        simulation_data.need_update = true;
 
         let simulation_sampler = _app_state.device.create_sampler(&wgpu::SamplerDescriptor {
             address_mode_u: wgpu::AddressMode::Repeat,
@@ -378,12 +497,15 @@ impl App for NcaApp {
             label: Some("Screne Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shaders/Screen.wgsl").into()),
         });
-
+        
+        let shader_code: String = GenerateSimulationShader(&activation_code);
         let simulation_shader = _app_state.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("Simulation Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shaders/simulation.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(
+                shader_code.into(),
+            ),
         });
-
+        
         let init_simulation_shader = _app_state.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("Init Simulation Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shaders/init_simulation.wgsl").into()),
@@ -436,7 +558,7 @@ impl App for NcaApp {
             label: Some("Init Simulation Render Pipeline"),
             layout: Some(&_app_state.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Init Simulation Pipeline Layout"),
-                bind_group_layouts: &[&init_simulation_uniforms.bind_group_layout],
+                bind_group_layouts: &[&init_simulation_data.bind_group_layout],
                 push_constant_ranges: &[],
             })),
             vertex: wgpu::VertexState {
@@ -463,7 +585,7 @@ impl App for NcaApp {
             label: Some("Simulation Render Pipeline"),
             layout: Some(&_app_state.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Simulation Pipeline Layout"),
-                bind_group_layouts: &[&simulation_textures.bind_group_layout, &simulation_uniforms.bind_group_layout],
+                bind_group_layouts: &[&simulation_textures.bind_group_layout, &simulation_data.bind_group_layout],
                 push_constant_ranges: &[],
             })),
             vertex: wgpu::VertexState {
@@ -486,117 +608,8 @@ impl App for NcaApp {
             multiview: None,
         });
         
-        let default_presets: HashMap<String, Preset>  = HashMap::from([
-            ("Game Of life".to_owned(), Preset{
-                kernel: [1., 1., 1., 1., 9., 1., 1., 1., 1.],
-                activation_code: "
-fn activationFunction(x: f32) -> vec4<f32> {
-    var condition: bool = x == 3.0 || x == 11.0 || x == 12.0;
-    var r: f32 = select(0.0, 1.0, condition);
-    return vec4<f32>(r, r, r, 1.0);
-}".to_owned(),
-                display_frames_mode: DisplayFramesMode::All,
-            }),
-            ("Slime".to_owned(), Preset{
-                kernel: [0.8, -0.85, 0.8, -0.85, -0.2, -0.85, 0.8, -0.85, 0.8],
-                activation_code: "
-// an inverted gaussian function, 
-// where f(0) = 0. 
-// Graph: https://www.desmos.com/calculator/torawryxnq
-
-fn activationFunction(x: f32) -> vec4<f32> {
-    var r: f32 = -1./(0.89*pow(x, 2.)+1.)+1.;
-    return vec4<f32>(r, r, r, 1.0);
-}".to_owned(),
-                display_frames_mode: DisplayFramesMode::Evens,
-            }),
-            ("Waves".to_owned(), Preset{
-                kernel: [0.564599, -0.715900,  0.564599, -0.715900,  0.626900, -0.715900,  0.564599, -0.715900, 0.564599],
-                activation_code: "
-fn activationFunction(x: f32) -> vec4<f32> {
-    var r: f32 = abs(1.2*x);
-    return vec4<f32>(r, r, r, 1.0);
-}".to_owned(),
-                display_frames_mode: DisplayFramesMode::All,
-            }),
-            ("Stars".to_owned(), Preset{
-                kernel: [0.56459,-0.71590,0.56459,-0.75859,0.62690,-0.75859,0.56459,-0.71590,0.56459],
-                activation_code: "
-fn activationFunction(x: f32) -> vec4<f32> {
-    var r: f32 = abs(x);
-    return vec4<f32>(r, r, r, 1.0);
-}".to_owned(),
-                display_frames_mode: DisplayFramesMode::All,
-            }),
-            ("Pathways".to_owned(), Preset{
-                kernel: [0., 1., 0., 1., 1., 1., 0., 1., 0.],
-                activation_code: "
-fn gaussian(x: f32, b: f32) -> f32{
-    return 1./pow(2., (pow(x-b, 2.)));
-}
-
-fn activationFunction(x: f32) -> vec4<f32> {
-    var r: f32 = gaussian(x, 3.5);
-    return vec4<f32>(r, r, r, 1.0);
-}".to_owned(),
-                display_frames_mode: DisplayFramesMode::All,
-            }),
-            ("Mitosis".to_owned(), Preset{
-                kernel: [-0.939,0.879,-0.939,0.879,0.4,0.879,-0.939,0.879,-0.939],
-                activation_code: "
-// an inverted gaussian function, 
-// where f(0) = 0. 
-// Graph: https://www.desmos.com/calculator/torawryxnq
-
-fn activationFunction(x: f32) -> vec4<f32> {
-    var r: f32 = -1./(0.9*pow(x, 2.)+1.)+1.;
-    return vec4<f32>(r, r, r, 1.0);
-}".to_owned(),
-                display_frames_mode: DisplayFramesMode::All,
-            }),
-            ("Blob".to_owned(), Preset{
-                kernel: [
-                    0.7795687913894653, -0.7663648128509521, 0.7795687913894653, 
-                    -0.7663648128509521, -0.29899999499320984, -0.7663648128509521, 
-                    0.7795687913894653, -0.7663648128509521, 0.7795687913894653
-                ],
-                activation_code: "
-fn activationFunction(x: f32) -> vec4<f32> {
-    var r: f32 = -1./pow(2., (pow(x, 2.)))+1.;
-    return vec4<f32>(r, r, r, 1.0);
-}".to_owned(),
-                display_frames_mode: DisplayFramesMode::All,
-            }),
-            ("test".to_owned(), Preset{
-                kernel: [
-                    0.5669999718666077, -0.7149999737739563, 0.5669999718666077,
-                    -0.7149999737739563, 0.6370000243186951, -0.7149999737739563,
-                    0.5669999718666077, -0.7149999737739563, 0.5669999718666077
-                ],
-                activation_code: "
-fn activationFunction(x: f32) -> vec4<f32> {
-    var r: f32 = abs(x);
-    return vec4<f32>(r, r, r, 1.0);
-}".to_owned(),
-                display_frames_mode: DisplayFramesMode::Evens,
-            }),
-            ("test2".to_owned(), Preset{
-                kernel: [
-                    91.627685546875, -59.281097412109375, 91.627685546875, 
-                    -59.281097412109375, -42.35920715332031, -59.281097412109375, 
-                    91.627685546875, -59.281097412109375, 91.627685546875
-                ],
-                activation_code: "
-fn activationFunction(x: f32) -> vec4<f32> {
-    var r: f32 = (exp(2.*x) - 1.)/(exp(2.*x) + 1.);
-    return vec4<f32>(r, r, r, 1.0);
-}".to_owned(),
-                display_frames_mode: DisplayFramesMode::Evens,
-            }),
-        ]);
-
         Self {
-            default_presets,
+            presets_list,
             clear_color: wgpu::Color { r: 0.1, g: 0.2, b: 0.3, a: 1.0 },
             Simulation_size_state : SimulationSizeState::Compiled(simulation_size),
             primitive_state,
@@ -609,8 +622,8 @@ fn activationFunction(x: f32) -> vec4<f32> {
             simulation_render_pipeline,
             screen_render_pipeline,
             simulation_textures,
-            init_simulation_data: init_simulation_uniforms,
-            simulation_data: simulation_uniforms,
+            init_simulation_data,
+            simulation_data,
             init: false,
         
             bind_group_display_ping,
@@ -623,12 +636,8 @@ fn activationFunction(x: f32) -> vec4<f32> {
             target_delta: Duration::from_secs_f64(1.0 / 30.0),
             last_simulation_end: Instant::now(),
 
-            activation_code: "fn activationFunction(kernelOutput: f32) -> vec4<f32> {
-                var condition: bool = kernelOutput == 3.0 || kernelOutput == 11.0 || kernelOutput == 12.0;
-                var r: f32 = select(0.0, 1.0, condition);
-                return vec4<f32>(r, r, r, 1.0);
-            }".to_owned(),
-            shader_state : ShaderState::Compiled,
+            activation_code: activation_code,
+            shader_state: ShaderState::Compiled,
             display_frames_mode: DisplayFramesMode::All,
             view_data,
         }
@@ -696,7 +705,7 @@ fn activationFunction(x: f32) -> vec4<f32> {
                     ui.menu_button("Preset", |ui| {
                         egui::ScrollArea::vertical().show(ui, |ui| {
                             let mut preset_to_apply: Option<Preset> = None;
-                            for (name, preset) in self.default_presets.iter() {
+                            for (name, preset) in self.presets_list.iter() {
                                 if ui.button(name).clicked() {
                                     preset_to_apply = Some(preset.clone());
                                 }
@@ -759,7 +768,7 @@ fn activationFunction(x: f32) -> vec4<f32> {
                 .default_open(true)
                 .show(ui, |ui| {
                     egui::Grid::new("some_unique_id").show(ui, |ui| {
-                    for j in 0..3 {
+                        for j in 0..3 {
                             for i in 0..3 {
                                 ui.add(egui::DragValue::from_get_set(|optional_value: Option<f64>| {
                                     if let Some(v) = optional_value {
@@ -771,7 +780,7 @@ fn activationFunction(x: f32) -> vec4<f32> {
                             }
                             ui.end_row();
                         }
-                        });
+                    });
                 });
                 
                 egui::CollapsingHeader::new("Simulation")
