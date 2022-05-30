@@ -25,16 +25,16 @@ fn getCoords(coord: vec2<f32>, offset: vec2<f32>) -> vec2<f32> {
 fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
 
     let textureUv: vec2<f32> = vec2<f32>(in.uv.x, 1.0 - in.uv.y);
-    let sum: f32 =
-          textureSample(simulation_texture, simulation_tex_sampler, getCoords(textureUv, vec2<f32>( 1.,-1.))).x * simulation_uniforms.kernel[0] 
-        + textureSample(simulation_texture, simulation_tex_sampler, getCoords(textureUv, vec2<f32>( 0.,-1.))).x * simulation_uniforms.kernel[1]
-        + textureSample(simulation_texture, simulation_tex_sampler, getCoords(textureUv, vec2<f32>(-1.,-1.))).x * simulation_uniforms.kernel[2]
-        + textureSample(simulation_texture, simulation_tex_sampler, getCoords(textureUv, vec2<f32>( 1., 0.))).x * simulation_uniforms.kernel[3]
-        + textureSample(simulation_texture, simulation_tex_sampler, getCoords(textureUv, vec2<f32>( 0., 0.))).x * simulation_uniforms.kernel[4]
-        + textureSample(simulation_texture, simulation_tex_sampler, getCoords(textureUv, vec2<f32>(-1., 0.))).x * simulation_uniforms.kernel[5]
-        + textureSample(simulation_texture, simulation_tex_sampler, getCoords(textureUv, vec2<f32>( 1., 1.))).x * simulation_uniforms.kernel[6]
-        + textureSample(simulation_texture, simulation_tex_sampler, getCoords(textureUv, vec2<f32>( 0., 1.))).x * simulation_uniforms.kernel[7]
-        + textureSample(simulation_texture, simulation_tex_sampler, getCoords(textureUv, vec2<f32>(-1., 1.))).x * simulation_uniforms.kernel[8];
+    let sum: vec4<f32> =
+          textureSample(simulation_texture, simulation_tex_sampler, getCoords(textureUv, vec2<f32>( 1.,-1.))) * simulation_uniforms.kernel[0] 
+        + textureSample(simulation_texture, simulation_tex_sampler, getCoords(textureUv, vec2<f32>( 0.,-1.))) * simulation_uniforms.kernel[1]
+        + textureSample(simulation_texture, simulation_tex_sampler, getCoords(textureUv, vec2<f32>(-1.,-1.))) * simulation_uniforms.kernel[2]
+        + textureSample(simulation_texture, simulation_tex_sampler, getCoords(textureUv, vec2<f32>( 1., 0.))) * simulation_uniforms.kernel[3]
+        + textureSample(simulation_texture, simulation_tex_sampler, getCoords(textureUv, vec2<f32>( 0., 0.))) * simulation_uniforms.kernel[4]
+        + textureSample(simulation_texture, simulation_tex_sampler, getCoords(textureUv, vec2<f32>(-1., 0.))) * simulation_uniforms.kernel[5]
+        + textureSample(simulation_texture, simulation_tex_sampler, getCoords(textureUv, vec2<f32>( 1., 1.))) * simulation_uniforms.kernel[6]
+        + textureSample(simulation_texture, simulation_tex_sampler, getCoords(textureUv, vec2<f32>( 0., 1.))) * simulation_uniforms.kernel[7]
+        + textureSample(simulation_texture, simulation_tex_sampler, getCoords(textureUv, vec2<f32>(-1., 1.))) * simulation_uniforms.kernel[8];
 
     return activationFunction(sum);
 }

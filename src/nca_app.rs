@@ -97,8 +97,8 @@ fn GetPresets() -> HashMap<String, Preset> {
             Preset {
                 kernel: [1., 1., 1., 1., 9., 1., 1., 1., 1.],
                 activation_code: "
-fn activationFunction(x: f32) -> vec4<f32> {
-var condition: bool = x == 3.0 || x == 11.0 || x == 12.0;
+fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
+var condition: bool = kernelOutput.x == 3.0 || kernelOutput.x == 11.0 || kernelOutput.x == 12.0;
 var r: f32 = select(0.0, 1.0, condition);
 return vec4<f32>(r, r, r, 1.0);
 }"
@@ -113,11 +113,10 @@ return vec4<f32>(r, r, r, 1.0);
                 activation_code: "
 // an inverted gaussian function, 
 // where f(0) = 0. 
-// Graph: https://www.desmos.com/calculator/torawryxnq\
-                                  
+// Graph: https://www.desmos.com/calculator/torawryxnq          
 
-fn activationFunction(x: f32) -> vec4<f32> {
-var r: f32 = -1./(0.89*pow(x, 2.)+1.)+1.;
+fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
+var r: f32 = -1./(0.89*pow(kernelOutput.x, 2.)+1.)+1.;
 return vec4<f32>(r, r, r, 1.0);
 }"
                 .to_owned(),
@@ -132,8 +131,8 @@ return vec4<f32>(r, r, r, 1.0);
                     -0.715900, 0.564599,
                 ],
                 activation_code: "
-fn activationFunction(x: f32) -> vec4<f32> {
-var r: f32 = abs(1.2*x);
+fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
+var r: f32 = abs(1.2*kernelOutput.x);
 return vec4<f32>(r, r, r, 1.0);
 }"
                 .to_owned(),
@@ -148,8 +147,8 @@ return vec4<f32>(r, r, r, 1.0);
                     0.56459,
                 ],
                 activation_code: "
-fn activationFunction(x: f32) -> vec4<f32> {
-var r: f32 = abs(x);
+fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
+var r: f32 = abs(kernelOutput.x);
 return vec4<f32>(r, r, r, 1.0);
 }"
                 .to_owned(),
@@ -165,8 +164,8 @@ fn gaussian(x: f32, b: f32) -> f32{
 return 1./pow(2., (pow(x-b, 2.)));
 }
 
-fn activationFunction(x: f32) -> vec4<f32> {
-var r: f32 = gaussian(x, 3.5);
+fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
+var r: f32 = gaussian(kernelOutput.x, 3.5);
 return vec4<f32>(r, r, r, 1.0);
 }"
                 .to_owned(),
@@ -185,8 +184,8 @@ return vec4<f32>(r, r, r, 1.0);
 // Graph: https://www.desmos.com/calculator/torawryxnq\
                                   
 
-fn activationFunction(x: f32) -> vec4<f32> {
-var r: f32 = -1./(0.9*pow(x, 2.)+1.)+1.;
+fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
+var r: f32 = -1. / (0.9*pow(kernelOutput.x, 2.)+1.)+1.;
 return vec4<f32>(r, r, r, 1.0);
 }"
                 .to_owned(),
@@ -208,8 +207,8 @@ return vec4<f32>(r, r, r, 1.0);
                     0.7795687913894653,
                 ],
                 activation_code: "
-fn activationFunction(x: f32) -> vec4<f32> {
-var r: f32 = -1./pow(2., (pow(x, 2.)))+1.;
+fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
+var r: f32 = -1. / pow(2., (pow(kernelOutput.x, 2.)))+1.;
 return vec4<f32>(r, r, r, 1.0);
 }"
                 .to_owned(),
@@ -231,8 +230,8 @@ return vec4<f32>(r, r, r, 1.0);
                     0.5669999718666077,
                 ],
                 activation_code: "
-fn activationFunction(x: f32) -> vec4<f32> {
-var r: f32 = abs(x);
+fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
+var r: f32 = abs(kernelOutput.x);
 return vec4<f32>(r, r, r, 1.0);
 }"
                 .to_owned(),
@@ -254,8 +253,8 @@ return vec4<f32>(r, r, r, 1.0);
                     91.627685546875,
                 ],
                 activation_code: "
-fn activationFunction(x: f32) -> vec4<f32> {
-var r: f32 = (exp(2.*x) - 1.)/(exp(2.*x) + 1.);
+fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
+var r: f32 = (exp(2.*kernelOutput.x) - 1.) / (exp(2.*kernelOutput.x) + 1.);
 return vec4<f32>(r, r, r, 1.0);
 }"
                 .to_owned(),
