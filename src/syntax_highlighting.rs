@@ -130,9 +130,7 @@ pub struct CodeTheme {
 }
 
 impl Default for CodeTheme {
-    fn default() -> Self {
-        Self::dark()
-    }
+    fn default() -> Self { Self::dark() }
 }
 
 impl CodeTheme {
@@ -330,9 +328,7 @@ impl Highlighter {
     }
 
     fn highlight_impl(&self, theme: &CodeTheme, text: &str, language: &str) -> Option<LayoutJob> {
-        use syntect::easy::HighlightLines;
-        use syntect::highlighting::FontStyle;
-        use syntect::util::LinesWithEndings;
+        use syntect::{easy::HighlightLines, highlighting::FontStyle, util::LinesWithEndings};
 
         let syntax = self
             .ps
@@ -344,10 +340,7 @@ impl Highlighter {
 
         use egui::text::{LayoutSection, TextFormat};
 
-        let mut job = LayoutJob {
-            text: text.into(),
-            ..Default::default()
-        };
+        let mut job = LayoutJob { text: text.into(), ..Default::default() };
 
         for line in LinesWithEndings::from(text) {
             for (style, range) in h.highlight(line, &self.ps) {
@@ -413,11 +406,7 @@ impl Highlighter {
                     .map(|i| i + 2)
                     .or_else(|| text.find('\n'))
                     .unwrap_or(text.len());
-                job.append(
-                    &text[..end],
-                    0.0,
-                    theme.formats[TokenType::StringLiteral].clone(),
-                );
+                job.append(&text[..end], 0.0, theme.formats[TokenType::StringLiteral].clone());
                 text = &text[end..];
             } else if text.starts_with(|c: char| c.is_ascii_alphanumeric()) {
                 let end = text[1..]
@@ -435,21 +424,13 @@ impl Highlighter {
                 let end = text[1..]
                     .find(|c: char| !c.is_ascii_whitespace())
                     .map_or_else(|| text.len(), |i| i + 1);
-                job.append(
-                    &text[..end],
-                    0.0,
-                    theme.formats[TokenType::Whitespace].clone(),
-                );
+                job.append(&text[..end], 0.0, theme.formats[TokenType::Whitespace].clone());
                 text = &text[end..];
             } else {
                 let mut it = text.char_indices();
                 it.next();
                 let end = it.next().map_or(text.len(), |(idx, _chr)| idx);
-                job.append(
-                    &text[..end],
-                    0.0,
-                    theme.formats[TokenType::Punctuation].clone(),
-                );
+                job.append(&text[..end], 0.0, theme.formats[TokenType::Punctuation].clone());
                 text = &text[end..];
             }
         }

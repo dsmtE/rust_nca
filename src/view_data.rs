@@ -1,6 +1,6 @@
-use wgpu::util::DeviceExt;
-use nalgebra_glm as glm;
 use crevice::std140::AsStd140;
+use nalgebra_glm as glm;
+use wgpu::util::DeviceExt;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, AsStd140)]
@@ -19,7 +19,6 @@ pub struct ViewData {
 
 impl ViewData {
     pub fn new(device: &wgpu::Device) -> Self {
-        
         let uniform = ViewParameters {
             center: glm::vec2(0.5, 0.5),
             zoom_level: 1.0,
@@ -32,30 +31,26 @@ impl ViewData {
         });
 
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }
-            ],
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
             label: Some("View uniforms bind group layout"),
         });
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        layout: &bind_group_layout,
-        entries: &[
-            wgpu::BindGroupEntry {
+            layout: &bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: buffer.as_entire_binding(),
-            }
-        ],
-        label: Some("View uniforms bind group"),
+            }],
+            label: Some("View uniforms bind group"),
         });
 
         Self {

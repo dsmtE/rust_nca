@@ -13,13 +13,16 @@ pub struct CodeEditor<'a> {
 
 impl<'a> CodeEditor<'a> {
     pub fn new(code: &'a mut String, language: &'static str, height_row: Option<usize>) -> Self {
-        Self { code, language, height_row: height_row.unwrap_or(10) }
+        Self {
+            code,
+            language,
+            height_row: height_row.unwrap_or(10),
+        }
     }
 }
 
 impl<'a> UiWidget for CodeEditor<'a> {
     fn show(&mut self, ui: &mut egui::Ui) -> egui::Response {
-
         let mut theme = crate::syntax_highlighting::CodeTheme::from_memory(ui.ctx());
         ui.collapsing("Theme", |ui| {
             ui.group(|ui| {
@@ -37,7 +40,7 @@ impl<'a> UiWidget for CodeEditor<'a> {
 
         let font = egui::TextStyle::Monospace.resolve(ui.style());
         let height = ui.fonts().row_height(&font) * ((self.height_row + 1) as f32);
-        
+
         egui::ScrollArea::vertical()
             .max_height(height)
             .show(ui, |ui| -> egui::Response {
@@ -47,8 +50,9 @@ impl<'a> UiWidget for CodeEditor<'a> {
                     .lock_focus(true)
                     .desired_rows(self.height_row)
                     .desired_width(f32::INFINITY)
-                    .layouter(&mut layouter)
+                    .layouter(&mut layouter),
                 )
-            }).inner
+            })
+            .inner
     }
 }

@@ -3,7 +3,12 @@ use std::time::Instant;
 use winit::{
     dpi::PhysicalSize,
     event::{
-        ElementState, Event, KeyboardInput, MouseButton, MouseScrollDelta, VirtualKeyCode,
+        ElementState,
+        Event,
+        KeyboardInput,
+        MouseButton,
+        MouseScrollDelta,
+        VirtualKeyCode,
         WindowEvent,
     },
 };
@@ -32,9 +37,7 @@ impl WinitEventHandler for InputsState {
             if let WindowEvent::KeyboardInput {
                 input:
                     KeyboardInput {
-                        virtual_keycode: Some(keycode),
-                        state,
-                        ..
+                        virtual_keycode: Some(keycode), state, ..
                     },
                 ..
             } = *event
@@ -66,7 +69,7 @@ impl WinitEventHandler for MouseState {
                     self.wheel_delta = glm::vec2(0.0, 0.0);
                 }
                 self.scrolled = false;
-        
+
                 if !self.moved {
                     self.position_delta = glm::vec2(0.0, 0.0);
                 }

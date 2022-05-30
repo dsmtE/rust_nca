@@ -1,5 +1,5 @@
-use wgpu::util::DeviceExt;
 use rand::Rng;
+use wgpu::util::DeviceExt;
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct SimulationUniforms {
@@ -9,7 +9,7 @@ pub struct SimulationUniforms {
 }
 
 impl SimulationUniforms {
-    pub fn new(simulation_size : &[u32; 2]) -> Self {
+    pub fn new(simulation_size: &[u32; 2]) -> Self {
         Self {
             pixel_size: simulation_size.map(|x| 1.0 / x as f32),
             kernel: [1.0, 1.0, 1.0, 1.0, 9.0, 1.0, 1.0, 1.0, 1.0],
@@ -50,11 +50,10 @@ pub struct InitSimulationData {
     pub bind_group: wgpu::BindGroup,
 }
 
-//TODO: generic getSet fonctionnal
+// TODO: generic getSet fonctionnal
 
 impl SimulationData {
-    pub fn new(device: &wgpu::Device, simulation_size : &[u32; 2]) -> Self {
-        
+    pub fn new(device: &wgpu::Device, simulation_size: &[u32; 2]) -> Self {
         let uniform = SimulationUniforms::new(&simulation_size);
 
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -64,30 +63,26 @@ impl SimulationData {
         });
 
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }
-            ],
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
             label: Some("simulation uniforms bind group layout"),
         });
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        layout: &bind_group_layout,
-        entries: &[
-            wgpu::BindGroupEntry {
+            layout: &bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: buffer.as_entire_binding(),
-            }
-        ],
-        label: Some("Simulation uniforms bind group"),
+            }],
+            label: Some("Simulation uniforms bind group"),
         });
 
         Self {
@@ -99,7 +94,7 @@ impl SimulationData {
         }
     }
 
-    pub fn set_simulation_size(&mut self, new_simulation_size : &[u32; 2]) {
+    pub fn set_simulation_size(&mut self, new_simulation_size: &[u32; 2]) {
         self.uniform.pixel_size = new_simulation_size.map(|x| 1.0 / x as f32);
         self.need_update = true;
     }
@@ -112,7 +107,6 @@ impl SimulationData {
 
 impl InitSimulationData {
     pub fn new(device: &wgpu::Device) -> Self {
-        
         let uniform = InitSimulationUniforms::new();
 
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -122,30 +116,26 @@ impl InitSimulationData {
         });
 
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }
-            ],
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
             label: Some("Init Simulation uniforms bind group layout"),
         });
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        layout: &bind_group_layout,
-        entries: &[
-            wgpu::BindGroupEntry {
+            layout: &bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: buffer.as_entire_binding(),
-            }
-        ],
-        label: Some("Init Simulation uniforms bind group"),
+            }],
+            label: Some("Init Simulation uniforms bind group"),
         });
 
         Self {
@@ -162,4 +152,3 @@ impl InitSimulationData {
         self.need_update = false;
     }
 }
-

@@ -1,8 +1,8 @@
 use std::{
-    time::{Instant, Duration},
-    thread,
-    sync::mpsc,
     iter,
+    sync::mpsc,
+    thread,
+    time::{Duration, Instant},
 };
 
 use winit::{
@@ -14,7 +14,7 @@ use winit::{
 use anyhow::Result;
 
 use crate::{
-    gui_render_wgpu::{Gui, GuiRenderWgpu, ScreenDescriptor}, 
+    gui_render_wgpu::{Gui, GuiRenderWgpu, ScreenDescriptor},
     input::{InputsState, SystemState, WinitEventHandler},
 };
 
@@ -35,48 +35,50 @@ pub struct AppState {
     pub input_state: InputsState,
     pub system_state: SystemState,
 
-    pub loop_helper:  LoopHelper,
+    pub loop_helper: LoopHelper,
 }
 
 impl AppState {
     pub fn set_fullscreen(&mut self) {
-        self.window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(self.window.primary_monitor())));
+        self.window
+            .set_fullscreen(Some(winit::window::Fullscreen::Borderless(
+                self.window.primary_monitor(),
+            )));
     }
 }
 
 pub trait App {
-
     fn create(_app_state: &mut AppState) -> Self;
 
-    fn update(&mut self, _app_state: &mut AppState) -> Result<()> {
+    fn update(&mut self, _app_state: &mut AppState) -> Result<()> { Ok(()) }
+
+    fn render_gui(&mut self, _ctx: &epi::egui::Context) -> Result<()> { Ok(()) }
+
+    fn render(
+        &mut self,
+        _app_state: &mut AppState,
+        _encoder: &mut wgpu::CommandEncoder,
+        _output_view: &wgpu::TextureView,
+    ) -> Result<(), wgpu::SurfaceError> {
         Ok(())
     }
 
-    fn render_gui(&mut self, _ctx: & epi::egui::Context) -> Result<()> {
-        Ok(())
-    }
+    fn cleanup(&mut self) -> Result<()> { Ok(()) }
 
-    fn render(&mut self, _app_state: &mut AppState, _encoder: &mut wgpu::CommandEncoder, _output_view: &wgpu::TextureView) -> Result<(), wgpu::SurfaceError> {
+    fn on_mouse(
+        &mut self,
+        _app_state: &mut AppState,
+        _button: &MouseButton,
+        _button_state: &ElementState,
+    ) -> Result<()> {
         Ok(())
     }
-
-    fn cleanup(&mut self) -> Result<()> {
-        Ok(())
-    }
-
-    fn on_mouse(&mut self, _app_state: &mut AppState, _button: &MouseButton, _button_state: &ElementState) -> Result<()> {
-        Ok(())
-    }
-    fn on_key(&mut self, _app_state: &mut AppState, _input: KeyboardInput) -> Result<()> {
-        Ok(())
-    }
+    fn on_key(&mut self, _app_state: &mut AppState, _input: KeyboardInput) -> Result<()> { Ok(()) }
 
     fn handle_event(&mut self, _app_state: &mut AppState, _event: &Event<()>) -> Result<()> {
         Ok(())
     }
-
 }
-
 
 pub struct AppConfig {
     pub is_resizable: bool,
@@ -95,14 +97,13 @@ impl Default for AppConfig {
 }
 
 pub fn run_application<T: App + 'static>(config: AppConfig) -> Result<()> {
-
     let event_loop = EventLoop::new();
 
     let mut window_builder = WindowBuilder::new()
-    .with_decorations(true)
-    .with_resizable(config.is_resizable)
-    .with_transparent(false)
-    .with_title(config.title.to_string());
+        .with_decorations(true)
+        .with_resizable(config.is_resizable)
+        .with_transparent(false)
+        .with_title(config.title.to_string());
 
     if let Some(icon_path) = config.icon.as_ref() {
         let image = image::io::Reader::open(icon_path)?.decode()?.into_rgba8();
@@ -125,12 +126,13 @@ pub fn run_application<T: App + 'static>(config: AppConfig) -> Result<()> {
     // TODO : encapsulate renderer initialisation
     let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
     let surface = unsafe { instance.create_surface(&window) };
-    
+
     let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::default(),
         compatible_surface: Some(&surface),
         force_fallback_adapter: false,
-    })).unwrap();
+    }))
+    .unwrap();
 
     let (device, queue) = pollster::block_on(adapter.request_device(
         &wgpu::DeviceDescriptor {
@@ -141,7 +143,6 @@ pub fn run_application<T: App + 'static>(config: AppConfig) -> Result<()> {
         None,
     ))?;
     // .ok_or(Err(anyhow::anyhow!("Unable to request device")));
-    
 
     let surface_format = surface.get_preferred_format(&adapter).unwrap();
     let config = wgpu::SurfaceConfiguration {
@@ -154,7 +155,7 @@ pub fn run_application<T: App + 'static>(config: AppConfig) -> Result<()> {
         present_mode: wgpu::PresentMode::Mailbox,
     };
     surface.configure(&device, &config);
-    
+
     let gui = Gui::new(ScreenDescriptor {
         physical_width: window_dimensions.width,
         physical_height: window_dimensions.height,
@@ -164,21 +165,21 @@ pub fn run_application<T: App + 'static>(config: AppConfig) -> Result<()> {
     let gui_render = GuiRenderWgpu::new(&device, config.format, 1);
 
     let loop_helper = LoopHelper::builder()
-    .report_interval_s(1.0)
-    .build_with_target_rate(60);
+        .report_interval_s(1.0)
+        .build_with_target_rate(60);
 
     let mut app_state = AppState {
-        window: window,
+        window,
 
-        surface: surface,
-        device: device,
-        queue: queue,
-        config: config,
+        surface,
+        device,
+        queue,
+        config,
         clear_color: wgpu::Color { r: 0.1, g: 0.2, b: 0.3, a: 1.0 },
-    
-        gui: gui,
-        gui_render: gui_render,
-        
+
+        gui,
+        gui_render,
+
         input_state: InputsState::default(),
         system_state: SystemState::new(window_dimensions),
 
@@ -210,17 +211,20 @@ fn run_loop(
 
     match event {
         Event::WindowEvent { ref event, .. } => match event {
-            WindowEvent::Resized(physical_size) =>  {
+            WindowEvent::Resized(physical_size) => {
                 // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
                 // See: https://github.com/rust-windowing/winit/issues/208
                 // This solves an issue where the app would panic when minimizing on Windows.
                 app_state.config.width = physical_size.width;
                 app_state.config.height = physical_size.height;
                 if physical_size.width > 0 && physical_size.height > 0 {
-                    app_state.surface.configure(&app_state.device, &app_state.config);
+                    app_state
+                        .surface
+                        .configure(&app_state.device, &app_state.config);
                 }
-            },
-            WindowEvent::CloseRequested | WindowEvent::KeyboardInput {
+            }
+            WindowEvent::CloseRequested
+            | WindowEvent::KeyboardInput {
                 input:
                     KeyboardInput {
                         state: ElementState::Pressed,
@@ -241,7 +245,9 @@ fn run_loop(
             // TODO move that
             // TODO: fix render method here by calling sub app render features
             let full_output = {
-                let _frame_data = app_state.gui.start_frame(app_state.window.scale_factor() as _);
+                let _frame_data = app_state
+                    .gui
+                    .start_frame(app_state.window.scale_factor() as _);
                 app.render_gui(&app_state.gui.context())?;
                 app_state.gui.end_frame(&mut app_state.window)
             };
@@ -255,7 +261,7 @@ fn run_loop(
                 // All other errors (Outdated, Timeout) should be resolved by the next frame
                 Err(e) => eprintln!("{:?}", e),
             }
-        },
+        }
         Event::MainEventsCleared => {
             app.update(app_state)?;
 
@@ -263,14 +269,13 @@ fn run_loop(
             // request it.
             // window.request_redraw();
             app_state.window.request_redraw();
-            
+
             if let Some(fps) = app_state.loop_helper.report_rate() {
                 // println!("fps report : {}", fps);
             }
 
             app_state.loop_helper.loop_sleep_no_spin(); // or `loop_sleep_no_spin()` to save battery
             app_state.loop_helper.loop_start();
-
         }
         Event::LoopDestroyed => {
             app.cleanup()?;
@@ -285,17 +290,18 @@ pub fn render_app(
     app: &mut impl App,
     app_state: &mut AppState,
     gui_output: egui::FullOutput,
-) -> Result<(), wgpu::SurfaceError>  {
-
+) -> Result<(), wgpu::SurfaceError> {
     let output: wgpu::SurfaceTexture = app_state.surface.get_current_texture()?;
-    let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+    let view = output
+        .texture
+        .create_view(&wgpu::TextureViewDescriptor::default());
 
-    let mut encoder: wgpu::CommandEncoder = app_state.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        label: Some("Render Encoder"),
-    });
+    let mut encoder: wgpu::CommandEncoder = app_state
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Render Encoder") });
 
     app.render(app_state, &mut encoder, &view)?;
-    
+
     // draw UI
     encoder.insert_debug_marker("Render GUI");
 
@@ -307,7 +313,9 @@ pub fn render_app(
         scale_factor: app_state.window.scale_factor() as f32,
     };
 
-    app_state.gui_render.render(
+    app_state
+        .gui_render
+        .render(
             app_state.gui.context(),
             &app_state.device,
             &app_state.queue,
@@ -315,7 +323,8 @@ pub fn render_app(
             &mut encoder,
             &view,
             gui_output,
-    ).expect("Failed to execute gui render pass!");
+        )
+        .expect("Failed to execute gui render pass!");
 
     // submit will accept anything that implements IntoIter
     app_state.queue.submit(iter::once(encoder.finish()));
@@ -323,4 +332,3 @@ pub fn render_app(
 
     Ok(())
 }
-

@@ -1,4 +1,4 @@
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 use egui_wgpu_backend::RenderPass;
 
 use egui_winit_platform::{Platform, PlatformDescriptor};
@@ -6,7 +6,7 @@ use std::{sync::Arc, time::Instant};
 use wgpu::CommandEncoder;
 use winit::{event::Event, window::Window};
 
-pub use egui_wgpu_backend::ScreenDescriptor as ScreenDescriptor;
+pub use egui_wgpu_backend::ScreenDescriptor;
 
 // We repaint the UI every frame, so no custom repaint signal is needed
 struct RepaintSignal;
@@ -42,16 +42,13 @@ impl Gui {
         }
     }
 
-    pub fn handle_event(&mut self, event: &Event<()>) {
-        self.platform.handle_event(&event);
-    }
+    pub fn handle_event(&mut self, event: &Event<()>) { self.platform.handle_event(&event); }
 
-    pub fn context(&self) -> epi::egui::Context {
-        self.platform.context()
-    }
+    pub fn context(&self) -> epi::egui::Context { self.platform.context() }
 
     pub fn start_frame<'a>(&mut self, scale_factor: f32) -> epi::backend::FrameData {
-        self.platform.update_time(self.start_time.elapsed().as_secs_f64());
+        self.platform
+            .update_time(self.start_time.elapsed().as_secs_f64());
 
         // Begin to draw the UI frame.
         self.last_frame_start = Instant::now();
@@ -104,22 +101,25 @@ impl GuiRenderWgpu {
         output_view: &wgpu::TextureView,
         gui_output: egui::FullOutput,
     ) -> Result<()> {
-
         // TODO: how handle not repaint ui if isn't needed
         // if gui_output.needs_repaint {
 
-        self.renderpass.add_textures(&device, &queue, &gui_output.textures_delta)?;
+        self.renderpass
+            .add_textures(&device, &queue, &gui_output.textures_delta)?;
 
         let paint_jobs = context.tessellate(gui_output.shapes);
 
-        self.renderpass.update_buffers(&device, &queue, &paint_jobs, &screen_descriptor);
+        self.renderpass
+            .update_buffers(&device, &queue, &paint_jobs, &screen_descriptor);
 
         self.renderpass
             .execute(encoder, &output_view, &paint_jobs, &screen_descriptor, None)
             .context("Failed to execute egui renderpass!")?;
 
         // Remove unused textures
-        self.renderpass.remove_textures(gui_output.textures_delta).unwrap();
+        self.renderpass
+            .remove_textures(gui_output.textures_delta)
+            .unwrap();
 
         Ok(())
     }
