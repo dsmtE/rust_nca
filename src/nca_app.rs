@@ -758,9 +758,8 @@ fn activationFunction(x: f32) -> vec4<f32> {
                 egui::CollapsingHeader::new("Kernel")
                 .default_open(true)
                 .show(ui, |ui| {
-                    ui.separator();
+                    egui::Grid::new("some_unique_id").show(ui, |ui| {
                     for j in 0..3 {
-                        ui.horizontal(|ui| {
                             for i in 0..3 {
                                 ui.add(egui::DragValue::from_get_set(|optional_value: Option<f64>| {
                                     if let Some(v) = optional_value {
@@ -770,8 +769,9 @@ fn activationFunction(x: f32) -> vec4<f32> {
                                     self.simulation_data.uniform.kernel[j*3+i] as f64
                                 }).speed(0.1));
                             }
+                            ui.end_row();
+                        }
                         });
-                    }
                 });
                 
                 egui::CollapsingHeader::new("Simulation")
