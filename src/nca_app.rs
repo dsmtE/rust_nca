@@ -14,9 +14,12 @@ use std::collections::HashMap;
 
 use nalgebra_glm as glm;
 
+mod preset;
+
+use preset::Preset;
+
 use crate::{
     egui_widgets::{CodeEditor, UiWidget},
-    preset::{load_preset, save_preset, Preset},
     simulation_data::{InitSimulationData, SimulationData},
     utils::ping_pong_texture::PingPongTexture,
     view_data::ViewData,
@@ -88,177 +91,6 @@ pub struct NcaApp {
 
 fn generate_simulation_shader(activation_code: &str) -> String {
     include_str!("shaders/simulationBase.wgsl").replace("[functionTemplate]", activation_code)
-}
-
-fn get_presets() -> HashMap<String, Preset> {
-    HashMap::from([
-        (
-            "Game Of life".to_owned(),
-            Preset {
-                kernel: [1., 1., 1., 1., 9., 1., 1., 1., 1.],
-                activation_code: "
-fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
-var condition: bool = kernelOutput.x == 3.0 || kernelOutput.x == 11.0 || kernelOutput.x == 12.0;
-var r: f32 = select(0.0, 1.0, condition);
-return vec4<f32>(r, r, r, 1.0);
-}"
-                .to_owned(),
-                display_frames_mode: DisplayFramesMode::All,
-            },
-        ),
-        (
-            "Slime".to_owned(),
-            Preset {
-                kernel: [0.8, -0.85, 0.8, -0.85, -0.2, -0.85, 0.8, -0.85, 0.8],
-                activation_code: "
-// an inverted gaussian function, 
-// where f(0) = 0. 
-// Graph: https://www.desmos.com/calculator/torawryxnq
-                                  fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
-var r: f32 = -1./(0.89*pow(kernelOutput.x, 2.)+1.)+1.;
-return vec4<f32>(r, r, r, 1.0);
-}"
-                .to_owned(),
-                display_frames_mode: DisplayFramesMode::Evens,
-            },
-        ),
-        (
-            "Waves".to_owned(),
-            Preset {
-                kernel: [
-                    0.564599, -0.715900, 0.564599, -0.715900, 0.626900, -0.715900, 0.564599,
-                    -0.715900, 0.564599,
-                ],
-                activation_code: "
-fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
-var r: f32 = abs(1.2*kernelOutput.x);
-return vec4<f32>(r, r, r, 1.0);
-}"
-                .to_owned(),
-                display_frames_mode: DisplayFramesMode::All,
-            },
-        ),
-        (
-            "Stars".to_owned(),
-            Preset {
-                kernel: [
-                    0.56459, -0.71590, 0.56459, -0.75859, 0.62690, -0.75859, 0.56459, -0.71590,
-                    0.56459,
-                ],
-                activation_code: "
-fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
-var r: f32 = abs(kernelOutput.x);
-return vec4<f32>(r, r, r, 1.0);
-}"
-                .to_owned(),
-                display_frames_mode: DisplayFramesMode::All,
-            },
-        ),
-        (
-            "Pathways".to_owned(),
-            Preset {
-                kernel: [0., 1., 0., 1., 1., 1., 0., 1., 0.],
-                activation_code: "
-fn gaussian(x: f32, b: f32) -> f32{
-return 1./pow(2., (pow(x-b, 2.)));
-}
-
-fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
-var r: f32 = gaussian(kernelOutput.x, 3.5);
-return vec4<f32>(r, r, r, 1.0);
-}"
-                .to_owned(),
-                display_frames_mode: DisplayFramesMode::All,
-            },
-        ),
-        (
-            "Mitosis".to_owned(),
-            Preset {
-                kernel: [
-                    -0.939, 0.879, -0.939, 0.879, 0.4, 0.879, -0.939, 0.879, -0.939,
-                ],
-                activation_code: "
-// an inverted gaussian function, 
-// where f(0) = 0. 
-// Graph: https://www.desmos.com/calculator/torawryxnqfn
-                                  activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
-var r: f32 = -1. / (0.9*pow(kernelOutput.x, 2.)+1.)+1.;
-return vec4<f32>(r, r, r, 1.0);
-}"
-                .to_owned(),
-                display_frames_mode: DisplayFramesMode::All,
-            },
-        ),
-        (
-            "Blob".to_owned(),
-            Preset {
-                kernel: [
-                    0.7795687913894653,
-                    -0.7663648128509521,
-                    0.7795687913894653,
-                    -0.7663648128509521,
-                    -0.29899999499320984,
-                    -0.7663648128509521,
-                    0.7795687913894653,
-                    -0.7663648128509521,
-                    0.7795687913894653,
-                ],
-                activation_code: "
-fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
-var r: f32 = -1. / pow(2., (pow(kernelOutput.x, 2.)))+1.;
-return vec4<f32>(r, r, r, 1.0);
-}"
-                .to_owned(),
-                display_frames_mode: DisplayFramesMode::All,
-            },
-        ),
-        (
-            "test".to_owned(),
-            Preset {
-                kernel: [
-                    0.5669999718666077,
-                    -0.7149999737739563,
-                    0.5669999718666077,
-                    -0.7149999737739563,
-                    0.6370000243186951,
-                    -0.7149999737739563,
-                    0.5669999718666077,
-                    -0.7149999737739563,
-                    0.5669999718666077,
-                ],
-                activation_code: "
-fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
-var r: f32 = abs(kernelOutput.x);
-return vec4<f32>(r, r, r, 1.0);
-}"
-                .to_owned(),
-                display_frames_mode: DisplayFramesMode::Evens,
-            },
-        ),
-        (
-            "test2".to_owned(),
-            Preset {
-                kernel: [
-                    91.627685546875,
-                    -59.281097412109375,
-                    91.627685546875,
-                    -59.281097412109375,
-                    -42.35920715332031,
-                    -59.281097412109375,
-                    91.627685546875,
-                    -59.281097412109375,
-                    91.627685546875,
-                ],
-                activation_code: "
-fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
-var r: f32 = (exp(2.*kernelOutput.x) - 1.) / (exp(2.*kernelOutput.x) + 1.);
-return vec4<f32>(r, r, r, 1.0);
-}"
-                .to_owned(),
-                display_frames_mode: DisplayFramesMode::Evens,
-            },
-        ),
-    ])
 }
 
 fn get_texture_descriptor(size: &[u32; 2]) -> wgpu::TextureDescriptor {
@@ -442,7 +274,7 @@ fn build_init_simulation_pipeline(
 
 impl NcaApp {
     pub fn load_preset_from_file(&mut self, filepath: &str) -> Result<()> {
-        let preset: Preset = load_preset(filepath)?;
+        let preset: Preset = preset::load_preset(filepath)?;
 
         self.simulation_data.uniform.kernel = preset.kernel;
         self.simulation_data.need_update = true;
@@ -468,7 +300,7 @@ impl NcaApp {
             display_frames_mode: self.display_frames_mode.clone(),
         };
 
-        save_preset(filepath, &current_preset)
+        preset::save_preset(filepath, &current_preset)
     }
 
     pub fn try_generate_simulation_pipeline(
@@ -575,7 +407,7 @@ impl NcaApp {
 
 impl App for NcaApp {
     fn create(_app_state: &mut AppState) -> Self {
-        let presets_list = get_presets();
+        let presets_list = preset::get_presets();
 
         let (_, default_preset) = presets_list.iter().next().unwrap();
         let activation_code = default_preset.activation_code.clone();
