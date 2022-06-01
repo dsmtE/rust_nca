@@ -1,10 +1,9 @@
+use crate::utils::ping_pong_texture::PingPongTexture;
 
-use crate::{
-    utils::ping_pong_texture::PingPongTexture,
+use super::{
+    simulation_data::{InitSimulationData, SimulationData},
+    view_data::ViewData,
 };
-
-use super::simulation_data::{InitSimulationData, SimulationData};
-use super::view_data::ViewData;
 
 pub fn get_texture_descriptor(size: &[u32; 2]) -> wgpu::TextureDescriptor {
     wgpu::TextureDescriptor {
@@ -25,7 +24,16 @@ pub fn get_texture_descriptor(size: &[u32; 2]) -> wgpu::TextureDescriptor {
 pub fn get_simulation_textures_and_bind_groups(
     device: &mut wgpu::Device,
     texture_descriptor: &wgpu::TextureDescriptor,
-) -> Result<(PingPongTexture, wgpu::BindGroup, wgpu::BindGroup, wgpu::BindGroup, wgpu::BindGroup), wgpu::Error> {
+) -> Result<
+    (
+        PingPongTexture,
+        wgpu::BindGroup,
+        wgpu::BindGroup,
+        wgpu::BindGroup,
+        wgpu::BindGroup,
+    ),
+    wgpu::Error,
+> {
     let simulation_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
         address_mode_u: wgpu::AddressMode::Repeat,
         address_mode_v: wgpu::AddressMode::Repeat,

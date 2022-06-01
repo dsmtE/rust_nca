@@ -1,7 +1,7 @@
+mod pipeline_helpers;
 mod preset;
 mod simulation_data;
 mod view_data;
-mod pipeline_helpers;
 
 use anyhow::Result;
 use rand::Rng;
@@ -19,10 +19,16 @@ use std::collections::HashMap;
 
 use nalgebra_glm as glm;
 
+use pipeline_helpers::{
+    build_init_simulation_pipeline,
+    build_screen_pipeline,
+    build_simulation_pipeline,
+    get_simulation_textures_and_bind_groups,
+    get_texture_descriptor,
+};
 use preset::Preset;
 use simulation_data::{InitSimulationData, SimulationData};
 use view_data::ViewData;
-use pipeline_helpers::{build_init_simulation_pipeline, build_screen_pipeline, build_simulation_pipeline, get_simulation_textures_and_bind_groups, get_texture_descriptor};
 
 use crate::{
     egui_widgets::{CodeEditor, UiWidget},
