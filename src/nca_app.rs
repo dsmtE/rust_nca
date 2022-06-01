@@ -1,6 +1,6 @@
 use anyhow::Result;
-
-use wgpu::SurfaceConfiguration;
+use rand::Rng;
+use wgpu::{BindGroup, SurfaceConfiguration};
 use winit::event::{Event, MouseScrollDelta, WindowEvent};
 
 use std::time::{Duration, Instant};
@@ -113,9 +113,8 @@ return vec4<f32>(r, r, r, 1.0);
                 activation_code: "
 // an inverted gaussian function, 
 // where f(0) = 0. 
-// Graph: https://www.desmos.com/calculator/torawryxnq          
-
-fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
+// Graph: https://www.desmos.com/calculator/torawryxnq
+                                  fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
 var r: f32 = -1./(0.89*pow(kernelOutput.x, 2.)+1.)+1.;
 return vec4<f32>(r, r, r, 1.0);
 }"
@@ -181,10 +180,8 @@ return vec4<f32>(r, r, r, 1.0);
                 activation_code: "
 // an inverted gaussian function, 
 // where f(0) = 0. 
-// Graph: https://www.desmos.com/calculator/torawryxnq
-                                  
-
-fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
+// Graph: https://www.desmos.com/calculator/torawryxnqfn
+                                  activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
 var r: f32 = -1. / (0.9*pow(kernelOutput.x, 2.)+1.)+1.;
 return vec4<f32>(r, r, r, 1.0);
 }"
@@ -264,6 +261,185 @@ return vec4<f32>(r, r, r, 1.0);
     ])
 }
 
+fn get_texture_descriptor(size: &[u32; 2]) -> wgpu::TextureDescriptor {
+    wgpu::TextureDescriptor {
+        size: wgpu::Extent3d {
+            width: size[0],
+            height: size[1],
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Bgra8UnormSrgb,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+        label: None,
+    }
+}
+
+fn get_simulation_textures_and_bind_groups(
+    device: &mut wgpu::Device,
+    texture_descriptor: &wgpu::TextureDescriptor,
+) -> Result<(PingPongTexture, BindGroup, BindGroup, BindGroup, BindGroup), wgpu::Error> {
+    let simulation_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+        address_mode_u: wgpu::AddressMode::Repeat,
+        address_mode_v: wgpu::AddressMode::Repeat,
+        address_mode_w: wgpu::AddressMode::Repeat,
+        mag_filter: wgpu::FilterMode::Linear,
+        min_filter: wgpu::FilterMode::Linear,
+        mipmap_filter: wgpu::FilterMode::Nearest,
+        lod_min_clamp: 0.0,
+        lod_max_clamp: 0.0,
+        ..Default::default()
+    });
+
+    let display_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+        address_mode_u: wgpu::AddressMode::ClampToEdge,
+        address_mode_v: wgpu::AddressMode::ClampToEdge,
+        address_mode_w: wgpu::AddressMode::ClampToEdge,
+        mag_filter: wgpu::FilterMode::Nearest,
+        min_filter: wgpu::FilterMode::Nearest,
+        mipmap_filter: wgpu::FilterMode::Nearest,
+        lod_min_clamp: 0.0,
+        lod_max_clamp: 0.0,
+        ..Default::default()
+    });
+
+    let simulation_textures =
+        PingPongTexture::from_descriptor(device, &texture_descriptor, Some("simulation"))?;
+
+    let (bind_group_display_ping, bind_group_display_pong) =
+        simulation_textures.create_binding_group(device, &display_sampler);
+    let (bind_group_simulation_ping, bind_group_simulation_pong) =
+        simulation_textures.create_binding_group(device, &simulation_sampler);
+
+    Ok((
+        simulation_textures,
+        bind_group_display_ping,
+        bind_group_display_pong,
+        bind_group_simulation_ping,
+        bind_group_simulation_pong,
+    ))
+}
+
+fn build_simulation_pipeline(
+    device: &mut wgpu::Device,
+    surface_configuration: &wgpu::SurfaceConfiguration,
+    primitive_state: &wgpu::PrimitiveState,
+    multisample_state: &wgpu::MultisampleState,
+    screen_shader: &wgpu::ShaderModule,
+    simulation_shader: &wgpu::ShaderModule,
+    simulation_textures: &PingPongTexture,
+    simulation_data: &SimulationData,
+) -> wgpu::RenderPipeline {
+    device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some("Simulation Render Pipeline"),
+        layout: Some(&device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Simulation Pipeline Layout"),
+            bind_group_layouts: &[
+                &simulation_textures.bind_group_layout,
+                &simulation_data.bind_group_layout,
+            ],
+            push_constant_ranges: &[],
+        })),
+        vertex: wgpu::VertexState {
+            module: &screen_shader,
+            entry_point: "vs_main",
+            buffers: &[],
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: &simulation_shader,
+            entry_point: "fs_main",
+            targets: &[wgpu::ColorTargetState {
+                format: surface_configuration.format,
+                blend: Some(wgpu::BlendState::REPLACE),
+                write_mask: wgpu::ColorWrites::ALL,
+            }],
+        }),
+        primitive: *primitive_state,
+        depth_stencil: None,
+        multisample: *multisample_state,
+        multiview: None,
+    })
+}
+
+fn build_screen_pipeline(
+    device: &mut wgpu::Device,
+    surface_configuration: &wgpu::SurfaceConfiguration,
+    primitive_state: &wgpu::PrimitiveState,
+    multisample_state: &wgpu::MultisampleState,
+    screen_shader: &wgpu::ShaderModule,
+    simulation_textures: &PingPongTexture,
+    view_data: &ViewData,
+) -> wgpu::RenderPipeline {
+    device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some("Screen Render Pipeline"),
+        layout: Some(&device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Screen Pipeline Layout"),
+            bind_group_layouts: &[
+                &simulation_textures.bind_group_layout,
+                &view_data.bind_group_layout,
+            ],
+            push_constant_ranges: &[],
+        })),
+        vertex: wgpu::VertexState {
+            module: &screen_shader,
+            entry_point: "vs_main",
+            buffers: &[],
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: &screen_shader,
+            entry_point: "fs_main",
+            targets: &[wgpu::ColorTargetState {
+                format: surface_configuration.format,
+                blend: Some(wgpu::BlendState::REPLACE),
+                write_mask: wgpu::ColorWrites::ALL,
+            }],
+        }),
+        primitive: *primitive_state,
+        depth_stencil: None,
+        multisample: *multisample_state,
+        multiview: None,
+    })
+}
+
+fn build_init_simulation_pipeline(
+    device: &mut wgpu::Device,
+    surface_configuration: &wgpu::SurfaceConfiguration,
+    primitive_state: &wgpu::PrimitiveState,
+    multisample_state: &wgpu::MultisampleState,
+    screen_shader: &wgpu::ShaderModule,
+    init_simulation_shader: &wgpu::ShaderModule,
+    init_simulation_data: &InitSimulationData,
+) -> wgpu::RenderPipeline {
+    device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some("Init Simulation Render Pipeline"),
+        layout: Some(&device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Init Simulation Pipeline Layout"),
+            bind_group_layouts: &[&init_simulation_data.bind_group_layout],
+            push_constant_ranges: &[],
+        })),
+        vertex: wgpu::VertexState {
+            module: &screen_shader,
+            entry_point: "vs_main",
+            buffers: &[],
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: &init_simulation_shader,
+            entry_point: "fs_main",
+            targets: &[wgpu::ColorTargetState {
+                format: surface_configuration.format,
+                blend: Some(wgpu::BlendState::REPLACE),
+                write_mask: wgpu::ColorWrites::ALL,
+            }],
+        }),
+        primitive: *primitive_state,
+        depth_stencil: None,
+        multisample: *multisample_state,
+        multiview: None,
+    })
+}
+
 impl NcaApp {
     pub fn load_preset_from_file(&mut self, filepath: &str) -> Result<()> {
         let preset: Preset = load_preset(filepath)?;
@@ -300,48 +476,27 @@ impl NcaApp {
         device: &mut wgpu::Device,
         surface_configuration: &wgpu::SurfaceConfiguration,
     ) -> Result<(), wgpu::Error> {
-        let shader_code: String = generate_simulation_shader(&self.activation_code);
-
         let (tx, rx) = std::sync::mpsc::channel::<wgpu::Error>();
         device.on_uncaptured_error(move |e: wgpu::Error| {
             tx.send(e).expect("sending error failed");
         });
 
+        let shader_code: String = generate_simulation_shader(&self.activation_code);
         let simulation_shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("Simulation Shader"),
             source: wgpu::ShaderSource::Wgsl(shader_code.into()),
         });
 
-        let simulation_render_pipeline =
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("Simulation Render Pipeline"),
-                layout: Some(&device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Simulation Pipeline Layout"),
-                    bind_group_layouts: &[
-                        &self.simulation_textures.bind_group_layout,
-                        &self.simulation_data.bind_group_layout,
-                    ],
-                    push_constant_ranges: &[],
-                })),
-                vertex: wgpu::VertexState {
-                    module: &self.screen_shader,
-                    entry_point: "vs_main",
-                    buffers: &[],
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: &simulation_shader,
-                    entry_point: "fs_main",
-                    targets: &[wgpu::ColorTargetState {
-                        format: surface_configuration.format,
-                        blend: Some(wgpu::BlendState::REPLACE),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    }],
-                }),
-                primitive: self.primitive_state,
-                depth_stencil: None,
-                multisample: self.multisample_state,
-                multiview: None,
-            });
+        let simulation_render_pipeline = build_simulation_pipeline(
+            device,
+            surface_configuration,
+            &self.primitive_state,
+            &self.multisample_state,
+            &self.screen_shader,
+            &simulation_shader,
+            &self.simulation_textures,
+            &self.simulation_data,
+        );
 
         device.on_uncaptured_error(|e| panic!("{}", e));
 
@@ -366,113 +521,36 @@ impl NcaApp {
             tx.send(e).expect("sending error failed");
         });
 
-        let texture_desc = wgpu::TextureDescriptor {
-            size: wgpu::Extent3d {
-                width: new_simulation_size[0],
-                height: new_simulation_size[1],
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Bgra8UnormSrgb,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
-            label: None,
-        };
+        let texture_desc = get_texture_descriptor(&new_simulation_size);
 
-        let simulation_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::Repeat,
-            address_mode_v: wgpu::AddressMode::Repeat,
-            address_mode_w: wgpu::AddressMode::Repeat,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Nearest,
-            lod_min_clamp: 0.0,
-            lod_max_clamp: 0.0,
-            ..Default::default()
-        });
+        let (
+            simulation_textures,
+            bind_group_display_ping,
+            bind_group_display_pong,
+            bind_group_simulation_ping,
+            bind_group_simulation_pong,
+        ) = get_simulation_textures_and_bind_groups(device, &texture_desc)?;
 
-        let display_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Nearest,
-            min_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::FilterMode::Nearest,
-            lod_min_clamp: 0.0,
-            lod_max_clamp: 0.0,
-            ..Default::default()
-        });
+        let screen_render_pipeline = build_screen_pipeline(
+            device,
+            surface_configuration,
+            &self.primitive_state,
+            &self.multisample_state,
+            &self.screen_shader,
+            &self.simulation_textures,
+            &self.view_data,
+        );
 
-        let simulation_textures =
-            PingPongTexture::from_descriptor(device, &texture_desc, Some("simulation"))?;
-
-        let (bind_group_display_ping, bind_group_display_pong) =
-            simulation_textures.create_binding_group(device, &display_sampler);
-        let (bind_group_simulation_ping, bind_group_simulation_pong) =
-            simulation_textures.create_binding_group(device, &simulation_sampler);
-
-        let screen_render_pipeline =
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("Screen Render Pipeline"),
-                layout: Some(&device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Screen Pipeline Layout"),
-                    bind_group_layouts: &[
-                        &simulation_textures.bind_group_layout,
-                        &self.view_data.bind_group_layout,
-                    ],
-                    push_constant_ranges: &[],
-                })),
-                vertex: wgpu::VertexState {
-                    module: &self.screen_shader,
-                    entry_point: "vs_main",
-                    buffers: &[],
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: &self.screen_shader,
-                    entry_point: "fs_main",
-                    targets: &[wgpu::ColorTargetState {
-                        format: surface_configuration.format,
-                        blend: Some(wgpu::BlendState::REPLACE),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    }],
-                }),
-                primitive: self.primitive_state,
-                depth_stencil: None,
-                multisample: self.multisample_state,
-                multiview: None,
-            });
-
-        let simulation_render_pipeline =
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("Simulation Render Pipeline"),
-                layout: Some(&device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Simulation Pipeline Layout"),
-                    bind_group_layouts: &[
-                        &simulation_textures.bind_group_layout,
-                        &self.simulation_data.bind_group_layout,
-                    ],
-                    push_constant_ranges: &[],
-                })),
-                vertex: wgpu::VertexState {
-                    module: &self.screen_shader,
-                    entry_point: "vs_main",
-                    buffers: &[],
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: &self.simulation_shader,
-                    entry_point: "fs_main",
-                    targets: &[wgpu::ColorTargetState {
-                        format: surface_configuration.format,
-                        blend: Some(wgpu::BlendState::REPLACE),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    }],
-                }),
-                primitive: self.primitive_state,
-                depth_stencil: None,
-                multisample: self.multisample_state,
-                multiview: None,
-            });
+        let simulation_render_pipeline = build_simulation_pipeline(
+            device,
+            surface_configuration,
+            &self.primitive_state,
+            &self.multisample_state,
+            &self.screen_shader,
+            &self.simulation_shader,
+            &self.simulation_textures,
+            &self.simulation_data,
+        );
 
         device.on_uncaptured_error(|e| panic!("{}", e));
 
@@ -483,12 +561,12 @@ impl NcaApp {
         self.simulation_size_state = SimulationSizeState::Compiled(new_simulation_size);
         self.init = false;
         self.simulation_textures = simulation_textures;
-        self.screen_render_pipeline = screen_render_pipeline;
-        self.simulation_render_pipeline = simulation_render_pipeline;
         self.bind_group_display_ping = bind_group_display_ping;
         self.bind_group_display_pong = bind_group_display_pong;
         self.bind_group_simulation_ping = bind_group_simulation_ping;
         self.bind_group_simulation_pong = bind_group_simulation_pong;
+        self.screen_render_pipeline = screen_render_pipeline;
+        self.simulation_render_pipeline = simulation_render_pipeline;
         self.simulation_data
             .set_simulation_size(&new_simulation_size);
         Ok(())
@@ -504,71 +582,26 @@ impl App for NcaApp {
 
         let size = _app_state.window.inner_size();
 
-        let ui_central_viewport = Viewport {
-            x: 0.0,
-            y: 0.0,
-            width: size.width as f32,
-            height: size.height as f32,
-            min_depth: 0.0,
-            max_depth: 1.0,
-        };
-
         let simulation_size: [u32; 2] = [2000, 2000];
         // Texture
-        let texture_desc = wgpu::TextureDescriptor {
-            size: wgpu::Extent3d {
-                width: simulation_size[0],
-                height: simulation_size[1],
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Bgra8UnormSrgb,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
-            label: None,
-        };
+        let texture_desc = get_texture_descriptor(&simulation_size);
 
         let init_simulation_data = InitSimulationData::new(&_app_state.device);
-
-        let simulation_textures =
-            PingPongTexture::from_descriptor(&_app_state.device, &texture_desc, Some("simulation"))
-                .unwrap();
 
         let mut simulation_data = SimulationData::new(&_app_state.device, &simulation_size);
         simulation_data.uniform.kernel = default_preset.kernel;
         simulation_data.need_update = true;
 
-        let simulation_sampler = _app_state.device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::Repeat,
-            address_mode_v: wgpu::AddressMode::Repeat,
-            address_mode_w: wgpu::AddressMode::Repeat,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Nearest,
-            lod_min_clamp: 0.0,
-            lod_max_clamp: 0.0,
-            ..Default::default()
-        });
-
-        let display_sampler = _app_state.device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Nearest,
-            min_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::FilterMode::Nearest,
-            lod_min_clamp: 0.0,
-            lod_max_clamp: 0.0,
-            ..Default::default()
-        });
-
         let view_data = ViewData::new(&_app_state.device);
 
-        let (bind_group_display_ping, bind_group_display_pong) =
-            simulation_textures.create_binding_group(&_app_state.device, &display_sampler);
-        let (bind_group_simulation_ping, bind_group_simulation_pong) =
-            simulation_textures.create_binding_group(&_app_state.device, &simulation_sampler);
+        let (
+            simulation_textures,
+            bind_group_display_ping,
+            bind_group_display_pong,
+            bind_group_simulation_ping,
+            bind_group_simulation_pong,
+        ) = get_simulation_textures_and_bind_groups(&mut _app_state.device, &texture_desc)
+            .expect("");
 
         // Shaders
         let screen_shader = _app_state
@@ -602,118 +635,43 @@ impl App for NcaApp {
             topology: wgpu::PrimitiveTopology::TriangleList,
             strip_index_format: None,
             front_face: wgpu::FrontFace::Ccw,
-            cull_mode: Some(wgpu::Face::Back),
+            cull_mode: None,
             polygon_mode: wgpu::PolygonMode::Fill,
             ..Default::default()
         };
 
-        let multisample_state = wgpu::MultisampleState {
-            count: 1,
-            mask: !0,
-            alpha_to_coverage_enabled: false,
-        };
+        let multisample_state = wgpu::MultisampleState::default();
 
-        let screen_render_pipeline =
-            _app_state
-                .device
-                .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Screen Render Pipeline"),
-                    layout: Some(&_app_state.device.create_pipeline_layout(
-                        &wgpu::PipelineLayoutDescriptor {
-                            label: Some("Screen Pipeline Layout"),
-                            bind_group_layouts: &[
-                                &simulation_textures.bind_group_layout,
-                                &view_data.bind_group_layout,
-                            ],
-                            push_constant_ranges: &[],
-                        },
-                    )),
-                    vertex: wgpu::VertexState {
-                        module: &screen_shader,
-                        entry_point: "vs_main",
-                        buffers: &[],
-                    },
-                    fragment: Some(wgpu::FragmentState {
-                        module: &screen_shader,
-                        entry_point: "fs_main",
-                        targets: &[wgpu::ColorTargetState {
-                            format: _app_state.config.format,
-                            blend: Some(wgpu::BlendState::REPLACE),
-                            write_mask: wgpu::ColorWrites::ALL,
-                        }],
-                    }),
-                    primitive: primitive_state,
-                    depth_stencil: None,
-                    multisample: multisample_state,
-                    multiview: None,
-                });
+        let screen_render_pipeline = build_screen_pipeline(
+            &mut _app_state.device,
+            &_app_state.config,
+            &primitive_state,
+            &multisample_state,
+            &screen_shader,
+            &simulation_textures,
+            &view_data,
+        );
 
-        let init_simulation_render_pipeline =
-            _app_state
-                .device
-                .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Init Simulation Render Pipeline"),
-                    layout: Some(&_app_state.device.create_pipeline_layout(
-                        &wgpu::PipelineLayoutDescriptor {
-                            label: Some("Init Simulation Pipeline Layout"),
-                            bind_group_layouts: &[&init_simulation_data.bind_group_layout],
-                            push_constant_ranges: &[],
-                        },
-                    )),
-                    vertex: wgpu::VertexState {
-                        module: &screen_shader,
-                        entry_point: "vs_main",
-                        buffers: &[],
-                    },
-                    fragment: Some(wgpu::FragmentState {
-                        module: &init_simulation_shader,
-                        entry_point: "fs_main",
-                        targets: &[wgpu::ColorTargetState {
-                            format: _app_state.config.format,
-                            blend: Some(wgpu::BlendState::REPLACE),
-                            write_mask: wgpu::ColorWrites::ALL,
-                        }],
-                    }),
-                    primitive: primitive_state,
-                    depth_stencil: None,
-                    multisample: multisample_state,
-                    multiview: None,
-                });
+        let init_simulation_render_pipeline = build_init_simulation_pipeline(
+            &mut _app_state.device,
+            &_app_state.config,
+            &primitive_state,
+            &multisample_state,
+            &screen_shader,
+            &init_simulation_shader,
+            &init_simulation_data,
+        );
 
-        let simulation_render_pipeline =
-            _app_state
-                .device
-                .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Simulation Render Pipeline"),
-                    layout: Some(&_app_state.device.create_pipeline_layout(
-                        &wgpu::PipelineLayoutDescriptor {
-                            label: Some("Simulation Pipeline Layout"),
-                            bind_group_layouts: &[
-                                &simulation_textures.bind_group_layout,
-                                &simulation_data.bind_group_layout,
-                            ],
-                            push_constant_ranges: &[],
-                        },
-                    )),
-                    vertex: wgpu::VertexState {
-                        module: &screen_shader,
-                        entry_point: "vs_main",
-                        buffers: &[],
-                    },
-                    fragment: Some(wgpu::FragmentState {
-                        module: &simulation_shader,
-                        entry_point: "fs_main",
-                        targets: &[wgpu::ColorTargetState {
-                            format: _app_state.config.format,
-                            blend: Some(wgpu::BlendState::REPLACE),
-                            write_mask: wgpu::ColorWrites::ALL,
-                        }],
-                    }),
-                    primitive: primitive_state,
-                    depth_stencil: None,
-                    multisample: multisample_state,
-                    multiview: None,
-                });
+        let simulation_render_pipeline = build_simulation_pipeline(
+            &mut _app_state.device,
+            &_app_state.config,
+            &primitive_state,
+            &multisample_state,
+            &screen_shader,
+            &simulation_shader,
+            &simulation_textures,
+            &simulation_data,
+        );
 
         Self {
             presets_list,
@@ -738,7 +696,14 @@ impl App for NcaApp {
             bind_group_simulation_ping,
             bind_group_simulation_pong,
 
-            ui_central_viewport,
+            ui_central_viewport: Viewport {
+                x: 0.0,
+                y: 0.0,
+                width: size.width as f32,
+                height: size.height as f32,
+                min_depth: 0.0,
+                max_depth: 1.0,
+            },
 
             target_delta: Duration::from_secs_f64(1.0 / 30.0),
             last_simulation_end: Instant::now(),
@@ -914,6 +879,15 @@ impl App for NcaApp {
                                 ui.end_row();
                             }
                         });
+
+                        ui.separator();
+                        if ui.button("randomise kernel").clicked() {
+                            let mut rng = rand::thread_rng();
+                            for i in 0..9 {
+                                self.simulation_data.uniform.kernel[i] = rng.gen::<f32>();
+                            }
+                            self.simulation_data.need_update = true;
+                        }
                     });
 
                 egui::CollapsingHeader::new("Simulation")
