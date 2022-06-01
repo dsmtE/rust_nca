@@ -1,3 +1,7 @@
+mod preset;
+mod simulation_data;
+mod view_data;
+
 use anyhow::Result;
 use rand::Rng;
 use wgpu::{BindGroup, SurfaceConfiguration};
@@ -14,15 +18,13 @@ use std::collections::HashMap;
 
 use nalgebra_glm as glm;
 
-mod preset;
-
 use preset::Preset;
+use simulation_data::{InitSimulationData, SimulationData};
+use view_data::ViewData;
 
 use crate::{
     egui_widgets::{CodeEditor, UiWidget},
-    simulation_data::{InitSimulationData, SimulationData},
     utils::ping_pong_texture::PingPongTexture,
-    view_data::ViewData,
 };
 
 #[derive(Default)]
