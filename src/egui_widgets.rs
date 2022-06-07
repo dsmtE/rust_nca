@@ -1,3 +1,5 @@
+use nalgebra_glm as glm;
+
 /// Something to view
 pub trait UiWidget {
     fn show(&mut self, ui: &mut egui::Ui) -> egui::Response;
@@ -54,5 +56,97 @@ impl<'a> UiWidget for CodeEditor<'a> {
                 )
             })
             .inner
+    }
+}
+
+
+// https://iquilezles.org/articles/palettes/
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct IqGradient {
+    a: glm::Vec3,
+    b: glm::Vec3,
+    c: glm::Vec3,
+    d: glm::Vec3,
+}
+
+impl Default for IqGradient {
+    fn default() -> Self {
+        Self {
+            a: glm::vec3(0.5, 0.5, 0.5),
+            b: glm::vec3(0.5, 0.5, 0.5),
+            c: glm::vec3(1.0, 1.0, 1.0),
+            d: glm::vec3(0.0, 0.33, 0.67),
+        }
+    }
+}
+
+impl IqGradient {
+    pub fn evalue(&self, t: f32) -> glm::Vec3 {
+        let angle: glm::Vec3 = std::f32::consts::TAU*(self.c*t+self.d);
+        let cos: glm::Vec3 = glm::Vec3::from_iterator(angle.as_slice().into_iter().map(|x| x.cos()).into_iter());
+        self.a + self.b.component_mul(&cos)
+    }
+}
+
+impl IqGradient {
+    pub fn ui_control(&mut self, ui: &mut egui::Ui) {
+        ui.collapsing("gradient settings", |ui| {
+            let slicde_err_msg = "slice with incorrect length";
+            ui.label("color(t) = a + b.cos(2π(c.t+d))");
+            ui.hyperlink_to("read more about this", "https://iquilezles.org/articles/palettes/");
+            egui::Grid::new("gradient settings").show(ui, |ui| {
+                ui.label("a:");
+                egui::color_picker::color_edit_button_rgb(ui, self.a.as_mut_slice().try_into().expect(slicde_err_msg));
+                ui.label("b:");
+                egui::color_picker::color_edit_button_rgb(ui, self.b.as_mut_slice().try_into().expect(slicde_err_msg));
+                ui.end_row();
+            
+                ui.label("c:");
+                egui::color_picker::color_edit_button_rgb(ui, self.c.as_mut_slice().try_into().expect(slicde_err_msg));
+                ui.label("d:");
+                egui::color_picker::color_edit_button_rgb(ui, self.d.as_mut_slice().try_into().expect(slicde_err_msg));
+                ui.end_row();
+            });
+
+        });
+    }
+}
+
+const N: u32 = 6 * 6;
+impl UiWidget for IqGradient {
+    fn show(&mut self, ui: &mut egui::Ui) -> egui::Response {
+        let desired_size = egui::vec2(ui.spacing().slider_width *2.0, ui.spacing().interact_size.y * 2.0);
+        let (rect, response) = ui.allocate_at_least(desired_size, egui::Sense::click());
+
+        if ui.is_rect_visible(rect) {
+        let visuals = ui.style().interact(&response);
+
+        {
+            let mut mesh = egui::Mesh::default();
+            for i in 0..=N {
+                let t = i as f32 / (N as f32);
+                let color: glm::Vec3 = self.evalue(t);
+                let color32 =  egui::color::Color32::from_rgb(
+                            egui::color::gamma_u8_from_linear_f32(color[0]),
+                            egui::color::gamma_u8_from_linear_f32(color[1]),
+                            egui::color::gamma_u8_from_linear_f32(color[2]),
+                            );
+                let x = egui::lerp(rect.left()..=rect.right(), t);
+                mesh.colored_vertex(egui::pos2(x, rect.top()), color32);
+                mesh.colored_vertex(egui::pos2(x, rect.bottom()), color32);
+                if i < N {
+                    mesh.add_triangle(2 * i + 0, 2 * i + 1, 2 * i + 2);
+                    mesh.add_triangle(2 * i + 1, 2 * i + 2, 2 * i + 3);
+                }
+            }
+            ui.painter().add(egui::Shape::mesh(mesh));
+        }
+
+        ui.painter().rect_stroke(rect, 0.0, visuals.bg_stroke); // outline
+    }
+
+    response.on_hover_text("computed from the formula:\ncolor(t) = a + b.cos(2π(c.t+d))")
     }
 }
