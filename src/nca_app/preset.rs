@@ -72,7 +72,7 @@ return vec4<f32>(r, r, r, 1.0);
 // an inverted gaussian function, 
 // where f(0) = 0. 
 // Graph: https://www.desmos.com/calculator/torawryxnq
-                                  fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
+fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
 var r: f32 = -1./(0.89*pow(kernelOutput.x, 2.)+1.)+1.;
 return vec4<f32>(r, r, r, 1.0);
 }"
@@ -139,7 +139,7 @@ return vec4<f32>(r, r, r, 1.0);
 // an inverted gaussian function, 
 // where f(0) = 0. 
 // Graph: https://www.desmos.com/calculator/torawryxnqfn
-                                  activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
+fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
 var r: f32 = -1. / (0.9*pow(kernelOutput.x, 2.)+1.)+1.;
 return vec4<f32>(r, r, r, 1.0);
 }"
