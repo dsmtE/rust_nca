@@ -1,4 +1,5 @@
 use nalgebra_glm as glm;
+use crevice::std140::AsStd140;
 
 /// Something to view
 pub trait UiWidget {
@@ -62,7 +63,7 @@ impl<'a> UiWidget for CodeEditor<'a> {
 
 // https://iquilezles.org/articles/palettes/
 #[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, AsStd140)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct IqGradient {
     a: glm::Vec3,
@@ -91,26 +92,28 @@ impl IqGradient {
 }
 
 impl IqGradient {
-    pub fn ui_control(&mut self, ui: &mut egui::Ui) {
+    pub fn ui_control(&mut self, ui: &mut egui::Ui) -> bool {
+        let mut changed: bool = false;
         ui.collapsing("gradient settings", |ui| {
             let slicde_err_msg = "slice with incorrect length";
             ui.label("color(t) = a + b.cos(2π(c.t+d))");
             ui.hyperlink_to("read more about this", "https://iquilezles.org/articles/palettes/");
             egui::Grid::new("gradient settings").show(ui, |ui| {
                 ui.label("a:");
-                egui::color_picker::color_edit_button_rgb(ui, self.a.as_mut_slice().try_into().expect(slicde_err_msg));
+                changed |= egui::color_picker::color_edit_button_rgb(ui, self.a.as_mut_slice().try_into().expect(slicde_err_msg)).changed();
                 ui.label("b:");
-                egui::color_picker::color_edit_button_rgb(ui, self.b.as_mut_slice().try_into().expect(slicde_err_msg));
+                changed |= egui::color_picker::color_edit_button_rgb(ui, self.b.as_mut_slice().try_into().expect(slicde_err_msg)).changed();
                 ui.end_row();
             
                 ui.label("c:");
-                egui::color_picker::color_edit_button_rgb(ui, self.c.as_mut_slice().try_into().expect(slicde_err_msg));
+                changed |= egui::color_picker::color_edit_button_rgb(ui, self.c.as_mut_slice().try_into().expect(slicde_err_msg)).changed();
                 ui.label("d:");
-                egui::color_picker::color_edit_button_rgb(ui, self.d.as_mut_slice().try_into().expect(slicde_err_msg));
+                changed |= egui::color_picker::color_edit_button_rgb(ui, self.d.as_mut_slice().try_into().expect(slicde_err_msg)).changed();
                 ui.end_row();
             });
 
         });
+        changed
     }
 }
 

@@ -627,6 +627,13 @@ impl App for NcaApp {
 
                             ui.label(" fps");
                         });
+                        
+                        ui.separator();
+
+                        self.view_data.uniform.gradient.show(ui);
+                        if self.view_data.uniform.gradient.ui_control(ui) {
+                            self.view_data.need_update = true;
+                        }
                     });
 
                 ui.allocate_space(ui.available_size());

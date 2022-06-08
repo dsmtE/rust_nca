@@ -2,11 +2,14 @@ use crevice::std140::AsStd140;
 use nalgebra_glm as glm;
 use wgpu::util::DeviceExt;
 
+use crate::egui_widgets::IqGradient;
+
 #[repr(C)]
 #[derive(Debug, Copy, Clone, AsStd140)]
 pub struct ViewParameters {
     pub center: glm::Vec2,
     pub zoom_level: f32,
+    pub gradient: IqGradient,
 }
 
 pub struct ViewData {
@@ -22,6 +25,7 @@ impl ViewData {
         let uniform = ViewParameters {
             center: glm::vec2(0.5, 0.5),
             zoom_level: 1.0,
+            gradient: IqGradient::default(),
         };
 
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
