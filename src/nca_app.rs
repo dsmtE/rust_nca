@@ -627,7 +627,7 @@ impl App for NcaApp {
 
                             ui.label(" fps");
                         });
-                        
+
                         ui.separator();
 
                         self.view_data.uniform.gradient.show(ui);

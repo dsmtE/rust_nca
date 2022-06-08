@@ -1,9 +1,4 @@
-use std::{
-    iter,
-    sync::mpsc,
-    thread,
-    time::{Duration, Instant},
-};
+use std::iter;
 
 use winit::{
     event::{ElementState, Event, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent},
