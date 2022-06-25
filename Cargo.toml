@@ -30,6 +30,7 @@ syntect = { version = "5.0.0", optional = true, default-features = false, featur
 nalgebra-glm = { version = "0.17.0", features = ["serde-serialize"] }
 
 crevice = { version = "0.10.0", features = ["nalgebra"] }
+nfd2 = "0.3.1"
 
 [features]
 default = ["syntect"]

@@ -8,7 +8,7 @@ use rand::Rng;
 
 use winit::event::{Event, MouseScrollDelta, WindowEvent};
 
-use std::time::{Duration, Instant};
+use std::{time::{Duration, Instant}, path::Path};
 
 use skeleton_app::{App, AppState};
 
@@ -104,29 +104,27 @@ fn generate_simulation_shader(activation_code: &str) -> String {
 }
 
 impl NcaApp {
-    pub fn load_preset_from_file(&mut self, filepath: &str) -> Result<()> {
-        let preset: Preset = preset::load_preset(filepath)?;
 
-        self.simulation_data.uniform.kernel = preset.kernel;
-        self.simulation_data.need_update = true;
-        Ok(())
+    #[inline(always)]
+    pub fn load_preset_from_file<P: AsRef<Path>>(&mut self, filepath: &P) -> Result<()> {
+        self.load_preset(preset::load_preset(filepath)?)
     }
 
-    pub fn load_preset(&mut self, preset: &Preset) -> Result<()> {
+    pub fn load_preset(&mut self, preset: Preset) -> Result<()> {
         self.simulation_data.uniform.kernel = preset.kernel;
         self.simulation_data.need_update = true;
 
-        self.activation_code = preset.activation_code.clone();
+        self.activation_code = preset.activation_code;
         self.shader_state = ShaderState::Dirty;
 
-        self.display_frames_mode = preset.display_frames_mode.clone();
+        self.display_frames_mode = preset.display_frames_mode;
 
         Ok(())
     }
 
-    pub fn save_preset(&self, filepath: &str) -> std::io::Result<()> {
+    pub fn save_preset<P: AsRef<Path>>(&self, filepath: &P) -> std::io::Result<()> {
         let current_preset = Preset {
-            kernel: self.simulation_data.uniform.kernel,
+            kernel: self.simulation_data.uniform.kernel.clone(),
             activation_code: self.activation_code.clone(),
             display_frames_mode: self.display_frames_mode.clone(),
         };
@@ -441,24 +439,42 @@ impl App for NcaApp {
                 egui::menu::bar(ui, |ui| {
                     ui.menu_button("File", |ui| {
                         if ui.button("Open").clicked() {
-                            self.load_preset_from_file("testSave.json");
+                            match nfd2::open_file_dialog(Some("json"), None).expect("Unable to open the file") {
+                                nfd2::Response::Okay(file_path) => {
+                                    let path: &Path = file_path.as_path();
+                                    self.load_preset_from_file(&path).unwrap_or_else(|error| {
+                                        println!("Unable to load preset from the file at path {}.\n {:?}", path.display(), error);
+                                    });
+                                }
+                                nfd2::Response::OkayMultiple(_) => println!("Multiple files selection should not happen here."),
+                                nfd2::Response::Cancel => (),
+                            }
                         }
                         if ui.button("Save").clicked() {
-                            self.save_preset("testSave.json");
+                            match nfd2::open_save_dialog(Some("json"), None).expect("Unable to save the file") {
+                                nfd2::Response::Okay(file_path) => {
+                                    let path: &Path = file_path.as_path();
+                                    self.save_preset(&path).unwrap_or_else(|error| {
+                                        println!("Unable to save the preset at path {}.\n {:?}", path.display(), error);
+                                    });
+                                }
+                                nfd2::Response::OkayMultiple(_) => println!("Multiple files selection should not happen here."),
+                                nfd2::Response::Cancel => (),
+                            }
                         }
                     });
-
                     ui.menu_button("Preset", |ui| {
                         egui::ScrollArea::vertical().show(ui, |ui| {
-                            let mut preset_to_apply: Option<Preset> = None;
+                            let mut preset_to_apply: Option<(String, Preset)> = None;
                             for (name, preset) in self.presets_list.iter() {
                                 if ui.button(name).clicked() {
-                                    preset_to_apply = Some(preset.clone());
+                                    preset_to_apply = Some((name.clone(), preset.clone()));
                                 }
                             }
-
-                            if let Some(preset) = preset_to_apply {
-                                self.load_preset(&preset);
+                            if let Some((preset_name, preset)) = preset_to_apply {
+                                self.load_preset(preset).unwrap_or_else(|error| {
+                                    println!("Unable to load selected preset : {}.\n {:?}", preset_name, error);
+                                });
                             }
                         });
                     });
