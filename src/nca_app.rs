@@ -8,7 +8,10 @@ use rand::Rng;
 
 use winit::event::{Event, MouseScrollDelta, WindowEvent};
 
-use std::{time::{Duration, Instant}, path::Path};
+use std::{
+    path::Path,
+    time::{Duration, Instant},
+};
 
 use skeleton_app::{App, AppState};
 
@@ -104,11 +107,8 @@ fn generate_simulation_shader(activation_code: &str) -> String {
 }
 
 impl NcaApp {
-
     #[inline(always)]
-    pub fn load_preset_from_file<P: AsRef<Path>>(&mut self, filepath: &P) -> Result<()> {
-        self.load_preset(preset::load_preset(filepath)?)
-    }
+    pub fn load_preset_from_file<P: AsRef<Path>>(&mut self, filepath: &P) -> Result<()> { self.load_preset(preset::load_preset(filepath)?) }
 
     pub fn load_preset(&mut self, preset: Preset) -> Result<()> {
         self.simulation_data.uniform.kernel = preset.kernel;
@@ -184,13 +184,8 @@ impl NcaApp {
 
         let texture_desc = get_texture_descriptor(&new_simulation_size);
 
-        let (
-            simulation_textures,
-            bind_group_display_ping,
-            bind_group_display_pong,
-            bind_group_simulation_ping,
-            bind_group_simulation_pong,
-        ) = get_simulation_textures_and_bind_groups(device, &texture_desc)?;
+        let (simulation_textures, bind_group_display_ping, bind_group_display_pong, bind_group_simulation_ping, bind_group_simulation_pong) =
+            get_simulation_textures_and_bind_groups(device, &texture_desc)?;
 
         let screen_render_pipeline = build_screen_pipeline(
             device,
@@ -228,8 +223,7 @@ impl NcaApp {
         self.bind_group_simulation_pong = bind_group_simulation_pong;
         self.screen_render_pipeline = screen_render_pipeline;
         self.simulation_render_pipeline = simulation_render_pipeline;
-        self.simulation_data
-            .set_simulation_size(&new_simulation_size);
+        self.simulation_data.set_simulation_size(&new_simulation_size);
         Ok(())
     }
 }
@@ -255,41 +249,25 @@ impl App for NcaApp {
 
         let view_data = ViewData::new(&_app_state.device);
 
-        let (
-            simulation_textures,
-            bind_group_display_ping,
-            bind_group_display_pong,
-            bind_group_simulation_ping,
-            bind_group_simulation_pong,
-        ) = get_simulation_textures_and_bind_groups(&mut _app_state.device, &texture_desc)
-            .expect("");
+        let (simulation_textures, bind_group_display_ping, bind_group_display_pong, bind_group_simulation_ping, bind_group_simulation_pong) =
+            get_simulation_textures_and_bind_groups(&mut _app_state.device, &texture_desc).expect("");
 
         // Shaders
-        let screen_shader = _app_state
-            .device
-            .create_shader_module(&wgpu::ShaderModuleDescriptor {
-                label: Some("Screne Shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("shaders/Screen.wgsl").into()),
-            });
+        let screen_shader = _app_state.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+            label: Some("Screne Shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shaders/Screen.wgsl").into()),
+        });
 
         let shader_code: String = generate_simulation_shader(&activation_code);
-        let simulation_shader =
-            _app_state
-                .device
-                .create_shader_module(&wgpu::ShaderModuleDescriptor {
-                    label: Some("Simulation Shader"),
-                    source: wgpu::ShaderSource::Wgsl(shader_code.into()),
-                });
+        let simulation_shader = _app_state.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+            label: Some("Simulation Shader"),
+            source: wgpu::ShaderSource::Wgsl(shader_code.into()),
+        });
 
-        let init_simulation_shader =
-            _app_state
-                .device
-                .create_shader_module(&wgpu::ShaderModuleDescriptor {
-                    label: Some("Init Simulation Shader"),
-                    source: wgpu::ShaderSource::Wgsl(
-                        include_str!("shaders/init_simulation.wgsl").into(),
-                    ),
-                });
+        let init_simulation_shader = _app_state.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+            label: Some("Init Simulation Shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shaders/init_simulation.wgsl").into()),
+        });
 
         // Pipeline
         let primitive_state = wgpu::PrimitiveState {
@@ -387,281 +365,233 @@ impl App for NcaApp {
                         b: 1.0,
                         a: 1.0,
                     };
-                }
+                },
                 WindowEvent::MouseWheel {
                     delta: MouseScrollDelta::LineDelta(_, y), ..
                 } => {
                     let window_scale_factor = _app_state.window.scale_factor() as f32;
 
                     let mouse_pos = &_app_state.input_state.mouse.position;
-                    let viewport_min_position =
-                        glm::vec2(self.ui_central_viewport.x, self.ui_central_viewport.y)
-                            * window_scale_factor;
-                    let viewport_size =
-                        glm::vec2(self.ui_central_viewport.width, self.ui_central_viewport.height)
-                            * window_scale_factor;
-                    let normalized_mouse_pos_within_viewport =
-                        (*mouse_pos - viewport_min_position).zip_map(&viewport_size, |y, x| y / x);
+                    let viewport_min_position = glm::vec2(self.ui_central_viewport.x, self.ui_central_viewport.y) * window_scale_factor;
+                    let viewport_size = glm::vec2(self.ui_central_viewport.width, self.ui_central_viewport.height) * window_scale_factor;
+                    let normalized_mouse_pos_within_viewport = (*mouse_pos - viewport_min_position).zip_map(&viewport_size, |y, x| y / x);
                     // let mouse_pos_within_simulation = self.view_data.uniform.center + (normalized_mouse_pos_within_viewport - glm::vec2(0.5, 0.5)) * self.view_data.uniform.zoom_level;
 
                     let old_zoom_level = self.view_data.uniform.zoom_level;
-                    self.view_data.uniform.zoom_level =
-                        (self.view_data.uniform.zoom_level * 1.08_f32.powf(-*y)).min(1.0);
+                    self.view_data.uniform.zoom_level = (self.view_data.uniform.zoom_level * 1.08_f32.powf(-*y)).min(1.0);
 
                     let zoom_delta = old_zoom_level - self.view_data.uniform.zoom_level;
                     if *y > 0. {
-                        self.view_data.uniform.center += (normalized_mouse_pos_within_viewport
-                            - glm::vec2(0.5, 0.5))
-                            * zoom_delta;
+                        self.view_data.uniform.center += (normalized_mouse_pos_within_viewport - glm::vec2(0.5, 0.5)) * zoom_delta;
                     } else {
                         if old_zoom_level != 1.0 {
-                            self.view_data.uniform.center += (glm::vec2(0.5, 0.5)
-                                - self.view_data.uniform.center)
-                                / (old_zoom_level - 1.0)
-                                * zoom_delta;
+                            self.view_data.uniform.center +=
+                                (glm::vec2(0.5, 0.5) - self.view_data.uniform.center) / (old_zoom_level - 1.0) * zoom_delta;
                         }
                     }
 
                     self.view_data.need_update = true;
-                }
-                _ => {}
+                },
+                _ => {},
             },
-            _ => {}
+            _ => {},
         };
 
         Ok(())
     }
 
     fn render_gui(&mut self, _ctx: &epi::egui::Context) -> Result<()> {
-        egui::TopBottomPanel::top("top_panel")
-            .resizable(true)
-            .show(&_ctx, |ui| {
-                egui::menu::bar(ui, |ui| {
-                    ui.menu_button("File", |ui| {
-                        if ui.button("Open").clicked() {
-                            match nfd2::open_file_dialog(Some("json"), None).expect("Unable to open the file") {
-                                nfd2::Response::Okay(file_path) => {
-                                    let path: &Path = file_path.as_path();
-                                    self.load_preset_from_file(&path).unwrap_or_else(|error| {
-                                        println!("Unable to load preset from the file at path {}.\n {:?}", path.display(), error);
-                                    });
-                                }
-                                nfd2::Response::OkayMultiple(_) => println!("Multiple files selection should not happen here."),
-                                nfd2::Response::Cancel => (),
-                            }
-                        }
-                        if ui.button("Save").clicked() {
-                            match nfd2::open_save_dialog(Some("json"), None).expect("Unable to save the file") {
-                                nfd2::Response::Okay(file_path) => {
-                                    let path: &Path = file_path.as_path();
-                                    self.save_preset(&path).unwrap_or_else(|error| {
-                                        println!("Unable to save the preset at path {}.\n {:?}", path.display(), error);
-                                    });
-                                }
-                                nfd2::Response::OkayMultiple(_) => println!("Multiple files selection should not happen here."),
-                                nfd2::Response::Cancel => (),
-                            }
-                        }
-                    });
-                    ui.menu_button("Preset", |ui| {
-                        egui::ScrollArea::vertical().show(ui, |ui| {
-                            let mut preset_to_apply: Option<(String, Preset)> = None;
-                            for (name, preset) in self.presets_list.iter() {
-                                if ui.button(name).clicked() {
-                                    preset_to_apply = Some((name.clone(), preset.clone()));
-                                }
-                            }
-                            if let Some((preset_name, preset)) = preset_to_apply {
-                                self.load_preset(preset).unwrap_or_else(|error| {
-                                    println!("Unable to load selected preset : {}.\n {:?}", preset_name, error);
+        egui::TopBottomPanel::top("top_panel").resizable(true).show(&_ctx, |ui| {
+            egui::menu::bar(ui, |ui| {
+                ui.menu_button("File", |ui| {
+                    if ui.button("Open").clicked() {
+                        match nfd2::open_file_dialog(Some("json"), None).expect("Unable to open the file") {
+                            nfd2::Response::Okay(file_path) => {
+                                let path: &Path = file_path.as_path();
+                                self.load_preset_from_file(&path).unwrap_or_else(|error| {
+                                    println!("Unable to load preset from the file at path {}.\n {:?}", path.display(), error);
                                 });
+                            },
+                            nfd2::Response::OkayMultiple(_) => println!("Multiple files selection should not happen here."),
+                            nfd2::Response::Cancel => (),
+                        }
+                    }
+                    if ui.button("Save").clicked() {
+                        match nfd2::open_save_dialog(Some("json"), None).expect("Unable to save the file") {
+                            nfd2::Response::Okay(file_path) => {
+                                let path: &Path = file_path.as_path();
+                                self.save_preset(&path).unwrap_or_else(|error| {
+                                    println!("Unable to save the preset at path {}.\n {:?}", path.display(), error);
+                                });
+                            },
+                            nfd2::Response::OkayMultiple(_) => println!("Multiple files selection should not happen here."),
+                            nfd2::Response::Cancel => (),
+                        }
+                    }
+                });
+                ui.menu_button("Preset", |ui| {
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        let mut preset_to_apply: Option<(String, Preset)> = None;
+                        for (name, preset) in self.presets_list.iter() {
+                            if ui.button(name).clicked() {
+                                preset_to_apply = Some((name.clone(), preset.clone()));
                             }
-                        });
+                        }
+                        if let Some((preset_name, preset)) = preset_to_apply {
+                            self.load_preset(preset).unwrap_or_else(|error| {
+                                println!("Unable to load selected preset : {}.\n {:?}", preset_name, error);
+                            });
+                        }
                     });
                 });
             });
+        });
 
-        egui::SidePanel::left("left_panel")
-            .resizable(true)
-            .show(&_ctx, |ui| {
-                ui.heading("Left Panel");
+        egui::SidePanel::left("left_panel").resizable(true).show(&_ctx, |ui| {
+            ui.heading("Left Panel");
 
-                egui::CollapsingHeader::new("Simulation settings")
-                    .default_open(true)
-                    .show(ui, |ui| {
-                        ui.add(
-                            egui::DragValue::from_get_set(|optional_value: Option<f64>| {
-                                if let Some(v) = optional_value {
-                                    self.simulation_size_state =
-                                        SimulationSizeState::Dirty([v as u32, v as u32]);
-                                }
-                                match self.simulation_size_state {
-                                    SimulationSizeState::Compiled(size) => size[0] as f64,
-                                    SimulationSizeState::Dirty(size) => size[0] as f64,
-                                }
-                            })
-                            .speed(1)
-                            .prefix("simulation size: "),
-                        );
-                    });
+            egui::CollapsingHeader::new("Simulation settings").default_open(true).show(ui, |ui| {
+                ui.add(
+                    egui::DragValue::from_get_set(|optional_value: Option<f64>| {
+                        if let Some(v) = optional_value {
+                            self.simulation_size_state = SimulationSizeState::Dirty([v as u32, v as u32]);
+                        }
+                        match self.simulation_size_state {
+                            SimulationSizeState::Compiled(size) => size[0] as f64,
+                            SimulationSizeState::Dirty(size) => size[0] as f64,
+                        }
+                    })
+                    .speed(1)
+                    .prefix("simulation size: "),
+                );
+            });
 
-                egui::CollapsingHeader::new("Starting settings")
-                    .default_open(true)
-                    .show(ui, |ui| {
-                        ui.separator();
-                        ui.add(
-                            egui::DragValue::from_get_set(|optional_value: Option<f64>| {
-                                if let Some(v) = optional_value {
-                                    self.init_simulation_data.uniform.seed = v as f32;
-                                    self.init_simulation_data.need_update = true;
-                                }
-                                self.init_simulation_data.uniform.seed as f64
-                            })
-                            .speed(0.1)
-                            .prefix("seed: "),
-                        );
-
-                        if ui.button("randoms float").clicked() {
-                            self.init = false;
-                            self.init_simulation_data.uniform.initialisation_mode = 1;
+            egui::CollapsingHeader::new("Starting settings").default_open(true).show(ui, |ui| {
+                ui.separator();
+                ui.add(
+                    egui::DragValue::from_get_set(|optional_value: Option<f64>| {
+                        if let Some(v) = optional_value {
+                            self.init_simulation_data.uniform.seed = v as f32;
                             self.init_simulation_data.need_update = true;
                         }
+                        self.init_simulation_data.uniform.seed as f64
+                    })
+                    .speed(0.1)
+                    .prefix("seed: "),
+                );
 
-                        if ui.button("randoms ints").clicked() {
-                            self.init = false;
-                            self.init_simulation_data.uniform.initialisation_mode = 0;
-                            self.init_simulation_data.need_update = true;
-                        }
-                    });
+                if ui.button("randoms float").clicked() {
+                    self.init = false;
+                    self.init_simulation_data.uniform.initialisation_mode = 1;
+                    self.init_simulation_data.need_update = true;
+                }
 
-                egui::CollapsingHeader::new("Kernel")
-                    .default_open(true)
-                    .show(ui, |ui| {
-                        egui::Grid::new("some_unique_id").show(ui, |ui| {
-                            for j in 0..3 {
-                                for i in 0..3 {
-                                    ui.add(
-                                        egui::DragValue::from_get_set(
-                                            |optional_value: Option<f64>| {
-                                                if let Some(v) = optional_value {
-                                                    self.simulation_data.uniform.kernel
-                                                        [j * 3 + i] = v as f32;
-                                                    self.simulation_data.need_update = true;
-                                                }
-                                                self.simulation_data.uniform.kernel[j * 3 + i]
-                                                    as f64
-                                            },
-                                        )
-                                        .speed(0.1),
-                                    );
-                                }
-                                ui.end_row();
-                            }
-                        });
+                if ui.button("randoms ints").clicked() {
+                    self.init = false;
+                    self.init_simulation_data.uniform.initialisation_mode = 0;
+                    self.init_simulation_data.need_update = true;
+                }
+            });
 
-                        ui.separator();
-                        if ui.button("randomise kernel").clicked() {
-                            let mut rng = rand::thread_rng();
-                            for i in 0..9 {
-                                self.simulation_data.uniform.kernel[i] = rng.gen::<f32>();
-                            }
-                            self.simulation_data.need_update = true;
-                        }
-                    });
-
-                egui::CollapsingHeader::new("Simulation")
-                    .default_open(true)
-                    .show(ui, |ui| {
-                        ui.separator();
-                        let mut code_editor =
-                            CodeEditor::new(&mut self.activation_code, "rs", Some(15));
-                        code_editor.show(ui);
-
-                        let code_to_paste: Option<String> =
-                            _ctx.input().events.iter().find_map(|e| match e {
-                                egui::Event::Paste(paste_content) => {
-                                    Some((*paste_content).to_owned())
-                                }
-                                _ => None,
-                            });
-
-                        if let Some(new_code) = code_to_paste {
-                            self.activation_code = new_code;
-                        }
-
-                        if let ShaderState::CompilationFail(error) = &self.shader_state {
-                            ui.label(format!("Shader compile error:\n {}", error));
-                        }
-
-                        if ui.button("Recompile").clicked() {
-                            self.shader_state = ShaderState::Dirty;
-                        }
-                    });
-
-                egui::CollapsingHeader::new("Display Options")
-                    .default_open(true)
-                    .show(ui, |ui| {
-                        ui.separator();
-                        ui.horizontal(|ui| {
-                            ui.label("Display frame mode: ");
-                            egui::ComboBox::from_id_source("display_frames_mode")
-                                .selected_text(format!("{:?}", self.display_frames_mode))
-                                .show_ui(ui, |ui| {
-                                    ui.selectable_value(
-                                        &mut self.display_frames_mode,
-                                        DisplayFramesMode::All,
-                                        "ALl",
-                                    );
-                                    ui.selectable_value(
-                                        &mut self.display_frames_mode,
-                                        DisplayFramesMode::Evens,
-                                        "Evens",
-                                    );
-                                    ui.selectable_value(
-                                        &mut self.display_frames_mode,
-                                        DisplayFramesMode::Odd,
-                                        "Odd",
-                                    );
-                                });
-                        });
-
-                        ui.horizontal(|ui| {
-                            ui.label("Target Simulation rate: ");
+            egui::CollapsingHeader::new("Kernel").default_open(true).show(ui, |ui| {
+                egui::Grid::new("some_unique_id").show(ui, |ui| {
+                    for j in 0..3 {
+                        for i in 0..3 {
                             ui.add(
-                                egui::DragValue::from_get_set(|new_value: Option<f64>| {
-                                    if let Some(value) = new_value {
-                                        self.target_delta =
-                                            Duration::from_secs_f64(1.0 / value.max(1.0));
+                                egui::DragValue::from_get_set(|optional_value: Option<f64>| {
+                                    if let Some(v) = optional_value {
+                                        self.simulation_data.uniform.kernel[j * 3 + i] = v as f32;
+                                        self.simulation_data.need_update = true;
                                     }
-
-                                    1.0 / self.target_delta.as_secs_f64()
+                                    self.simulation_data.uniform.kernel[j * 3 + i] as f64
                                 })
-                                .speed(1.0)
-                                .min_decimals(1)
-                                .max_decimals(60),
+                                .speed(0.1),
                             );
-
-                            ui.label(" fps");
-                        });
-
-                        ui.separator();
-
-                        self.view_data.uniform.gradient.show(ui);
-                        if self.view_data.uniform.gradient.ui_control(ui) {
-                            self.view_data.need_update = true;
                         }
-                    });
+                        ui.end_row();
+                    }
+                });
 
-                ui.allocate_space(ui.available_size());
+                ui.separator();
+                if ui.button("randomise kernel").clicked() {
+                    let mut rng = rand::thread_rng();
+                    for i in 0..9 {
+                        self.simulation_data.uniform.kernel[i] = rng.gen::<f32>();
+                    }
+                    self.simulation_data.need_update = true;
+                }
             });
 
-        egui::TopBottomPanel::bottom("bottom_panel")
-            .resizable(true)
-            .show(&_ctx, |ui| {
-                ui.heading("Bottom Panel");
+            egui::CollapsingHeader::new("Simulation").default_open(true).show(ui, |ui| {
+                ui.separator();
+                let mut code_editor = CodeEditor::new(&mut self.activation_code, "rs", Some(15));
+                code_editor.show(ui);
 
-                ui.allocate_space(ui.available_size());
+                let code_to_paste: Option<String> = _ctx.input().events.iter().find_map(|e| match e {
+                    egui::Event::Paste(paste_content) => Some((*paste_content).to_owned()),
+                    _ => None,
+                });
+
+                if let Some(new_code) = code_to_paste {
+                    self.activation_code = new_code;
+                }
+
+                if let ShaderState::CompilationFail(error) = &self.shader_state {
+                    ui.label(format!("Shader compile error:\n {}", error));
+                }
+
+                if ui.button("Recompile").clicked() {
+                    self.shader_state = ShaderState::Dirty;
+                }
             });
+
+            egui::CollapsingHeader::new("Display Options").default_open(true).show(ui, |ui| {
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label("Display frame mode: ");
+                    egui::ComboBox::from_id_source("display_frames_mode")
+                        .selected_text(format!("{:?}", self.display_frames_mode))
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut self.display_frames_mode, DisplayFramesMode::All, "ALl");
+                            ui.selectable_value(&mut self.display_frames_mode, DisplayFramesMode::Evens, "Evens");
+                            ui.selectable_value(&mut self.display_frames_mode, DisplayFramesMode::Odd, "Odd");
+                        });
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Target Simulation rate: ");
+                    ui.add(
+                        egui::DragValue::from_get_set(|new_value: Option<f64>| {
+                            if let Some(value) = new_value {
+                                self.target_delta = Duration::from_secs_f64(1.0 / value.max(1.0));
+                            }
+
+                            1.0 / self.target_delta.as_secs_f64()
+                        })
+                        .speed(1.0)
+                        .min_decimals(1)
+                        .max_decimals(60),
+                    );
+
+                    ui.label(" fps");
+                });
+
+                ui.separator();
+
+                self.view_data.uniform.gradient.show(ui);
+                if self.view_data.uniform.gradient.ui_control(ui) {
+                    self.view_data.need_update = true;
+                }
+            });
+
+            ui.allocate_space(ui.available_size());
+        });
+
+        egui::TopBottomPanel::bottom("bottom_panel").resizable(true).show(&_ctx, |ui| {
+            ui.heading("Bottom Panel");
+
+            ui.allocate_space(ui.available_size());
+        });
 
         let center_rect = _ctx.available_rect();
 
@@ -677,35 +607,26 @@ impl App for NcaApp {
 
     fn update(&mut self, _app_state: &mut AppState) -> Result<()> {
         if let ShaderState::Dirty = self.shader_state {
-            match self.try_generate_simulation_pipeline(&mut _app_state.device, &_app_state.config)
-            {
+            match self.try_generate_simulation_pipeline(&mut _app_state.device, &_app_state.config) {
                 Err(err) => match err {
                     wgpu::Error::OutOfMemory { .. } => {
                         anyhow::bail!("Shader compilation gpu::Error::OutOfMemory")
-                    }
-                    wgpu::Error::Validation { description, .. } => {
-                        self.shader_state = ShaderState::CompilationFail(description)
-                    }
+                    },
+                    wgpu::Error::Validation { description, .. } => self.shader_state = ShaderState::CompilationFail(description),
                 },
-                Ok(()) => {}
+                Ok(()) => {},
             }
         }
 
         if let SimulationSizeState::Dirty(new_simulation_size) = self.simulation_size_state {
-            match self.try_update_simulation_size(
-                new_simulation_size,
-                &mut _app_state.device,
-                &_app_state.config,
-            ) {
+            match self.try_update_simulation_size(new_simulation_size, &mut _app_state.device, &_app_state.config) {
                 Err(err) => match err {
                     wgpu::Error::OutOfMemory { .. } => {
                         anyhow::bail!("Shader compilation gpu::Error::OutOfMemory")
-                    }
-                    wgpu::Error::Validation { description, .. } => {
-                        self.shader_state = ShaderState::CompilationFail(description)
-                    }
+                    },
+                    wgpu::Error::Validation { description, .. } => self.shader_state = ShaderState::CompilationFail(description),
                 },
-                Ok(()) => {}
+                Ok(()) => {},
             }
         }
 
@@ -727,26 +648,21 @@ impl App for NcaApp {
                     self.init_simulation_data.update(&_app_state.queue);
                 }
 
-                let mut init_simulation_render_pass =
-                    _encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                        label: Some("Init Simulation Render Pass"),
-                        color_attachments: &[wgpu::RenderPassColorAttachment {
-                            view: &self.simulation_textures.get_rendered_texture_view(),
-                            resolve_target: None,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(self.clear_color),
-                                store: true,
-                            },
-                        }],
-                        depth_stencil_attachment: None,
-                    });
+                let mut init_simulation_render_pass = _encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Init Simulation Render Pass"),
+                    color_attachments: &[wgpu::RenderPassColorAttachment {
+                        view: &self.simulation_textures.get_rendered_texture_view(),
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(self.clear_color),
+                            store: true,
+                        },
+                    }],
+                    depth_stencil_attachment: None,
+                });
 
                 init_simulation_render_pass.set_pipeline(&self.init_simulation_render_pipeline);
-                init_simulation_render_pass.set_bind_group(
-                    0,
-                    &self.init_simulation_data.bind_group,
-                    &[],
-                );
+                init_simulation_render_pass.set_bind_group(0, &self.init_simulation_data.bind_group, &[]);
                 init_simulation_render_pass.draw(0..3, 0..1);
             }
 
@@ -756,19 +672,18 @@ impl App for NcaApp {
                     self.simulation_data.update(&_app_state.queue);
                 }
 
-                let mut simulation_render_pass =
-                    _encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                        label: Some("Simulation Render Pass"),
-                        color_attachments: &[wgpu::RenderPassColorAttachment {
-                            view: self.simulation_textures.get_target_texture_view(),
-                            resolve_target: None,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(self.clear_color),
-                                store: true,
-                            },
-                        }],
-                        depth_stencil_attachment: None,
-                    });
+                let mut simulation_render_pass = _encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Simulation Render Pass"),
+                    color_attachments: &[wgpu::RenderPassColorAttachment {
+                        view: self.simulation_textures.get_target_texture_view(),
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(self.clear_color),
+                            store: true,
+                        },
+                    }],
+                    depth_stencil_attachment: None,
+                });
 
                 simulation_render_pass.set_pipeline(&self.simulation_render_pipeline);
                 let bind_group: &wgpu::BindGroup = if self.simulation_textures.state {
@@ -820,13 +735,12 @@ impl App for NcaApp {
             screen_render_pass.set_pipeline(&self.screen_render_pipeline);
 
             let bind_group: &wgpu::BindGroup = match self.display_frames_mode {
-                DisplayFramesMode::All => {
+                DisplayFramesMode::All =>
                     if self.simulation_textures.state {
                         &self.bind_group_display_pong
                     } else {
                         &self.bind_group_display_ping
-                    }
-                }
+                    },
                 DisplayFramesMode::Evens => &self.bind_group_display_pong,
                 DisplayFramesMode::Odd => &self.bind_group_display_ping,
             };

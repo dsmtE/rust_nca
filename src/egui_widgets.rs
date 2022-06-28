@@ -35,8 +35,7 @@ impl<'a> UiWidget for CodeEditor<'a> {
         });
 
         let mut layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
-            let mut layout_job =
-                crate::syntax_highlighting::highlight(ui.ctx(), &theme, string, self.language);
+            let mut layout_job = crate::syntax_highlighting::highlight(ui.ctx(), &theme, string, self.language);
             layout_job.wrap_width = wrap_width;
             ui.fonts().layout_job(layout_job)
         };
@@ -85,8 +84,7 @@ impl Default for IqGradient {
 impl IqGradient {
     pub fn evalue(&self, t: f32) -> glm::Vec3 {
         let angle: glm::Vec3 = std::f32::consts::TAU * (self.c * t + self.d);
-        let cos: glm::Vec3 =
-            glm::Vec3::from_iterator(angle.as_slice().into_iter().map(|x| x.cos()).into_iter());
+        let cos: glm::Vec3 = glm::Vec3::from_iterator(angle.as_slice().into_iter().map(|x| x.cos()).into_iter());
         self.a + self.b.component_mul(&cos)
     }
 }
@@ -100,31 +98,15 @@ impl IqGradient {
             ui.hyperlink_to("read more about this", "https://iquilezles.org/articles/palettes/");
             egui::Grid::new("gradient settings").show(ui, |ui| {
                 ui.label("a:");
-                changed |= egui::color_picker::color_edit_button_rgb(
-                    ui,
-                    self.a.as_mut_slice().try_into().expect(slicde_err_msg),
-                )
-                .changed();
+                changed |= egui::color_picker::color_edit_button_rgb(ui, self.a.as_mut_slice().try_into().expect(slicde_err_msg)).changed();
                 ui.label("b:");
-                changed |= egui::color_picker::color_edit_button_rgb(
-                    ui,
-                    self.b.as_mut_slice().try_into().expect(slicde_err_msg),
-                )
-                .changed();
+                changed |= egui::color_picker::color_edit_button_rgb(ui, self.b.as_mut_slice().try_into().expect(slicde_err_msg)).changed();
                 ui.end_row();
 
                 ui.label("c:");
-                changed |= egui::color_picker::color_edit_button_rgb(
-                    ui,
-                    self.c.as_mut_slice().try_into().expect(slicde_err_msg),
-                )
-                .changed();
+                changed |= egui::color_picker::color_edit_button_rgb(ui, self.c.as_mut_slice().try_into().expect(slicde_err_msg)).changed();
                 ui.label("d:");
-                changed |= egui::color_picker::color_edit_button_rgb(
-                    ui,
-                    self.d.as_mut_slice().try_into().expect(slicde_err_msg),
-                )
-                .changed();
+                changed |= egui::color_picker::color_edit_button_rgb(ui, self.d.as_mut_slice().try_into().expect(slicde_err_msg)).changed();
                 ui.end_row();
             });
         });
@@ -135,8 +117,7 @@ impl IqGradient {
 const N: u32 = 6 * 6;
 impl UiWidget for IqGradient {
     fn show(&mut self, ui: &mut egui::Ui) -> egui::Response {
-        let desired_size =
-            egui::vec2(ui.spacing().slider_width * 2.0, ui.spacing().interact_size.y * 2.0);
+        let desired_size = egui::vec2(ui.spacing().slider_width * 2.0, ui.spacing().interact_size.y * 2.0);
         let (rect, response) = ui.allocate_at_least(desired_size, egui::Sense::click());
 
         if ui.is_rect_visible(rect) {

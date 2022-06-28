@@ -24,9 +24,7 @@ pub fn code_view_ui(ui: &mut egui::Ui, mut code: &str) {
 /// Memoized Code highlighting
 pub fn highlight(ctx: &egui::Context, theme: &CodeTheme, code: &str, language: &str) -> LayoutJob {
     impl egui::util::cache::ComputerMut<(&CodeTheme, &str, &str), LayoutJob> for Highlighter {
-        fn compute(&mut self, (theme, code, lang): (&CodeTheme, &str, &str)) -> LayoutJob {
-            self.highlight(theme, code, lang)
-        }
+        fn compute(&mut self, (theme, code, lang): (&CodeTheme, &str, &str)) -> LayoutJob { self.highlight(theme, code, lang) }
     }
 
     type HighlightCache<'a> = egui::util::cache::FrameCache<LayoutJob, Highlighter>;
@@ -106,10 +104,7 @@ impl SyntectTheme {
 
     pub fn is_dark(&self) -> bool {
         match self {
-            Self::Base16EightiesDark
-            | Self::Base16MochaDark
-            | Self::Base16OceanDark
-            | Self::SolarizedDark => true,
+            Self::Base16EightiesDark | Self::Base16MochaDark | Self::Base16OceanDark | Self::SolarizedDark => true,
 
             Self::Base16OceanLight | Self::InspiredGitHub | Self::SolarizedLight => false,
         }
@@ -144,13 +139,9 @@ impl CodeTheme {
 
     pub fn from_memory(ctx: &egui::Context) -> Self {
         if ctx.style().visuals.dark_mode {
-            ctx.data()
-                .get_persisted(egui::Id::new("dark"))
-                .unwrap_or_else(CodeTheme::dark)
+            ctx.data().get_persisted(egui::Id::new("dark")).unwrap_or_else(CodeTheme::dark)
         } else {
-            ctx.data()
-                .get_persisted(egui::Id::new("light"))
-                .unwrap_or_else(CodeTheme::light)
+            ctx.data().get_persisted(egui::Id::new("light")).unwrap_or_else(CodeTheme::light)
         }
     }
 
@@ -228,9 +219,7 @@ impl CodeTheme {
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         ui.horizontal_top(|ui| {
             let selected_id = egui::Id::null();
-            let mut selected_tt: TokenType = *ui
-                .data()
-                .get_persisted_mut_or(selected_id, TokenType::Comment);
+            let mut selected_tt: TokenType = *ui.data().get_persisted_mut_or(selected_id, TokenType::Comment);
 
             ui.vertical(|ui| {
                 ui.set_width(150.0);
@@ -262,10 +251,7 @@ impl CodeTheme {
                     CodeTheme::light()
                 };
 
-                if ui
-                    .add_enabled(*self != reset_value, egui::Button::new("Reset theme"))
-                    .clicked()
-                {
+                if ui.add_enabled(*self != reset_value, egui::Button::new("Reset theme")).clicked() {
                     *self = reset_value;
                 }
             });
@@ -274,18 +260,12 @@ impl CodeTheme {
 
             ui.data().insert_persisted(selected_id, selected_tt);
 
-            egui::Frame::group(ui.style())
-                .margin(egui::Vec2::splat(2.0))
-                .show(ui, |ui| {
-                    // ui.group(|ui| {
-                    ui.style_mut().override_text_style = Some(egui::TextStyle::Small);
-                    ui.spacing_mut().slider_width = 128.0; // Controls color picker size
-                    egui::widgets::color_picker::color_picker_color32(
-                        ui,
-                        &mut self.formats[selected_tt].color,
-                        egui::color_picker::Alpha::Opaque,
-                    );
-                });
+            egui::Frame::group(ui.style()).margin(egui::Vec2::splat(2.0)).show(ui, |ui| {
+                // ui.group(|ui| {
+                ui.style_mut().override_text_style = Some(egui::TextStyle::Small);
+                ui.spacing_mut().slider_width = 128.0; // Controls color picker size
+                egui::widgets::color_picker::color_picker_color32(ui, &mut self.formats[selected_tt].color, egui::color_picker::Alpha::Opaque);
+            });
         });
     }
 }
@@ -401,17 +381,11 @@ impl Highlighter {
                 job.append(&text[..end], 0.0, theme.formats[TokenType::Comment].clone());
                 text = &text[end..];
             } else if text.starts_with('"') {
-                let end = text[1..]
-                    .find('"')
-                    .map(|i| i + 2)
-                    .or_else(|| text.find('\n'))
-                    .unwrap_or(text.len());
+                let end = text[1..].find('"').map(|i| i + 2).or_else(|| text.find('\n')).unwrap_or(text.len());
                 job.append(&text[..end], 0.0, theme.formats[TokenType::StringLiteral].clone());
                 text = &text[end..];
             } else if text.starts_with(|c: char| c.is_ascii_alphanumeric()) {
-                let end = text[1..]
-                    .find(|c: char| !c.is_ascii_alphanumeric())
-                    .map_or_else(|| text.len(), |i| i + 1);
+                let end = text[1..].find(|c: char| !c.is_ascii_alphanumeric()).map_or_else(|| text.len(), |i| i + 1);
                 let word = &text[..end];
                 let tt = if is_keyword(word) {
                     TokenType::Keyword
@@ -421,9 +395,7 @@ impl Highlighter {
                 job.append(word, 0.0, theme.formats[tt].clone());
                 text = &text[end..];
             } else if text.starts_with(|c: char| c.is_ascii_whitespace()) {
-                let end = text[1..]
-                    .find(|c: char| !c.is_ascii_whitespace())
-                    .map_or_else(|| text.len(), |i| i + 1);
+                let end = text[1..].find(|c: char| !c.is_ascii_whitespace()).map_or_else(|| text.len(), |i| i + 1);
                 job.append(&text[..end], 0.0, theme.formats[TokenType::Whitespace].clone());
                 text = &text[end..];
             } else {

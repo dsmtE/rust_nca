@@ -30,15 +30,13 @@ impl Default for Preset {
 
 pub fn load_preset<P: AsRef<Path>>(path: P) -> anyhow::Result<Preset> {
     let string_path: &str = path.as_ref().to_str().unwrap_or("");
-    let mut file = File::open(path.as_ref())
-        .with_context(|| format!("Could not open file `{}`", string_path))?;
+    let mut file = File::open(path.as_ref()).with_context(|| format!("Could not open file `{}`", string_path))?;
 
     let mut buf = vec![];
     file.read_to_end(&mut buf)
         .with_context(|| format!("Could not read file `{}`", string_path))?;
 
-    serde_json::from_slice(&buf[..])
-        .with_context(|| format!("Unable to Parse the file `{}`", string_path))
+    serde_json::from_slice(&buf[..]).with_context(|| format!("Unable to Parse the file `{}`", string_path))
 }
 
 pub fn save_preset<P: AsRef<Path>>(path: P, preset: &Preset) -> std::io::Result<()> {
@@ -84,8 +82,7 @@ return vec4<f32>(r, r, r, 1.0);
             "Waves".to_owned(),
             Preset {
                 kernel: [
-                    0.564599, -0.715900, 0.564599, -0.715900, 0.626900, -0.715900, 0.564599,
-                    -0.715900, 0.564599,
+                    0.564599, -0.715900, 0.564599, -0.715900, 0.626900, -0.715900, 0.564599, -0.715900, 0.564599,
                 ],
                 activation_code: "
 fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
@@ -99,10 +96,7 @@ return vec4<f32>(r, r, r, 1.0);
         (
             "Stars".to_owned(),
             Preset {
-                kernel: [
-                    0.56459, -0.71590, 0.56459, -0.75859, 0.62690, -0.75859, 0.56459, -0.71590,
-                    0.56459,
-                ],
+                kernel: [0.56459, -0.71590, 0.56459, -0.75859, 0.62690, -0.75859, 0.56459, -0.71590, 0.56459],
                 activation_code: "
 fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
 var r: f32 = abs(kernelOutput.x);
@@ -132,9 +126,7 @@ return vec4<f32>(r, r, r, 1.0);
         (
             "Mitosis".to_owned(),
             Preset {
-                kernel: [
-                    -0.939, 0.879, -0.939, 0.879, 0.4, 0.879, -0.939, 0.879, -0.939,
-                ],
+                kernel: [-0.939, 0.879, -0.939, 0.879, 0.4, 0.879, -0.939, 0.879, -0.939],
                 activation_code: "
 // an inverted gaussian function, 
 // where f(0) = 0. 

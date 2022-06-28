@@ -13,7 +13,7 @@ impl PingPongTexture {
     pub fn from_descriptor(
         device: &wgpu::Device,
         descriptor: &wgpu::TextureDescriptor,
-        label: Option<&'static str>, /* Optional debug label. This will show up in graphics debuggers for easy identification. */
+        label: Option<&'static str>, // Optional debug label. This will show up in graphics debuggers for easy identification.
     ) -> Result<Self, wgpu::Error> {
         let texture_ping = device.create_texture(&descriptor);
         let texture_pong = device.create_texture(&descriptor);
@@ -52,13 +52,8 @@ impl PingPongTexture {
         })
     }
 
-    pub fn create_binding_group(
-        &self,
-        device: &wgpu::Device,
-        sampler: &wgpu::Sampler,
-    ) -> (wgpu::BindGroup, wgpu::BindGroup) {
-        let bind_group_ping_label: String =
-            self.label.unwrap_or("").to_owned() + " bind group ping";
+    pub fn create_binding_group(&self, device: &wgpu::Device, sampler: &wgpu::Sampler) -> (wgpu::BindGroup, wgpu::BindGroup) {
+        let bind_group_ping_label: String = self.label.unwrap_or("").to_owned() + " bind group ping";
         let bind_group_ping = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &self.bind_group_layout,
             entries: &[
@@ -74,8 +69,7 @@ impl PingPongTexture {
             label: Some(&bind_group_ping_label[..]),
         });
 
-        let bind_group_pong_label: String =
-            self.label.unwrap_or("").to_owned() + " bind group pong";
+        let bind_group_pong_label: String = self.label.unwrap_or("").to_owned() + " bind group pong";
         let bind_group_pong = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &self.bind_group_layout,
             entries: &[

@@ -24,16 +24,7 @@ pub fn get_texture_descriptor(size: &[u32; 2]) -> wgpu::TextureDescriptor {
 pub fn get_simulation_textures_and_bind_groups(
     device: &mut wgpu::Device,
     texture_descriptor: &wgpu::TextureDescriptor,
-) -> Result<
-    (
-        PingPongTexture,
-        wgpu::BindGroup,
-        wgpu::BindGroup,
-        wgpu::BindGroup,
-        wgpu::BindGroup,
-    ),
-    wgpu::Error,
-> {
+) -> Result<(PingPongTexture, wgpu::BindGroup, wgpu::BindGroup, wgpu::BindGroup, wgpu::BindGroup), wgpu::Error> {
     let simulation_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
         address_mode_u: wgpu::AddressMode::Repeat,
         address_mode_v: wgpu::AddressMode::Repeat,
@@ -58,13 +49,10 @@ pub fn get_simulation_textures_and_bind_groups(
         ..Default::default()
     });
 
-    let simulation_textures =
-        PingPongTexture::from_descriptor(device, &texture_descriptor, Some("simulation"))?;
+    let simulation_textures = PingPongTexture::from_descriptor(device, &texture_descriptor, Some("simulation"))?;
 
-    let (bind_group_display_ping, bind_group_display_pong) =
-        simulation_textures.create_binding_group(device, &display_sampler);
-    let (bind_group_simulation_ping, bind_group_simulation_pong) =
-        simulation_textures.create_binding_group(device, &simulation_sampler);
+    let (bind_group_display_ping, bind_group_display_pong) = simulation_textures.create_binding_group(device, &display_sampler);
+    let (bind_group_simulation_ping, bind_group_simulation_pong) = simulation_textures.create_binding_group(device, &simulation_sampler);
 
     Ok((
         simulation_textures,
@@ -89,10 +77,7 @@ pub fn build_simulation_pipeline(
         label: Some("Simulation Render Pipeline"),
         layout: Some(&device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Simulation Pipeline Layout"),
-            bind_group_layouts: &[
-                &simulation_textures.bind_group_layout,
-                &simulation_data.bind_group_layout,
-            ],
+            bind_group_layouts: &[&simulation_textures.bind_group_layout, &simulation_data.bind_group_layout],
             push_constant_ranges: &[],
         })),
         vertex: wgpu::VertexState {
@@ -129,10 +114,7 @@ pub fn build_screen_pipeline(
         label: Some("Screen Render Pipeline"),
         layout: Some(&device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Screen Pipeline Layout"),
-            bind_group_layouts: &[
-                &simulation_textures.bind_group_layout,
-                &view_data.bind_group_layout,
-            ],
+            bind_group_layouts: &[&simulation_textures.bind_group_layout, &view_data.bind_group_layout],
             push_constant_ranges: &[],
         })),
         vertex: wgpu::VertexState {

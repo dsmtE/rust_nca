@@ -47,8 +47,7 @@ impl Gui {
     pub fn context(&self) -> epi::egui::Context { self.platform.context() }
 
     pub fn start_frame<'a>(&mut self, scale_factor: f32) -> epi::backend::FrameData {
-        self.platform
-            .update_time(self.start_time.elapsed().as_secs_f64());
+        self.platform.update_time(self.start_time.elapsed().as_secs_f64());
 
         // Begin to draw the UI frame.
         self.last_frame_start = Instant::now();
@@ -81,11 +80,7 @@ pub struct GuiRenderWgpu {
 }
 
 impl GuiRenderWgpu {
-    pub fn new(
-        device: &wgpu::Device,
-        output_format: wgpu::TextureFormat,
-        msaa_samples: u32,
-    ) -> Self {
+    pub fn new(device: &wgpu::Device, output_format: wgpu::TextureFormat, msaa_samples: u32) -> Self {
         Self {
             renderpass: RenderPass::new(device, output_format, msaa_samples),
         }
@@ -104,22 +99,18 @@ impl GuiRenderWgpu {
         // TODO: how handle not repaint ui if isn't needed
         // if gui_output.needs_repaint {
 
-        self.renderpass
-            .add_textures(&device, &queue, &gui_output.textures_delta)?;
+        self.renderpass.add_textures(&device, &queue, &gui_output.textures_delta)?;
 
         let paint_jobs = context.tessellate(gui_output.shapes);
 
-        self.renderpass
-            .update_buffers(&device, &queue, &paint_jobs, &screen_descriptor);
+        self.renderpass.update_buffers(&device, &queue, &paint_jobs, &screen_descriptor);
 
         self.renderpass
             .execute(encoder, &output_view, &paint_jobs, &screen_descriptor, None)
             .context("Failed to execute egui renderpass!")?;
 
         // Remove unused textures
-        self.renderpass
-            .remove_textures(gui_output.textures_delta)
-            .unwrap();
+        self.renderpass.remove_textures(gui_output.textures_delta).unwrap();
 
         Ok(())
     }

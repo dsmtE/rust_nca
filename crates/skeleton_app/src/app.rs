@@ -36,9 +36,7 @@ pub struct AppState {
 impl AppState {
     pub fn set_fullscreen(&mut self) {
         self.window
-            .set_fullscreen(Some(winit::window::Fullscreen::Borderless(
-                self.window.primary_monitor(),
-            )));
+            .set_fullscreen(Some(winit::window::Fullscreen::Borderless(self.window.primary_monitor())));
     }
 }
 
@@ -60,19 +58,10 @@ pub trait App {
 
     fn cleanup(&mut self) -> Result<()> { Ok(()) }
 
-    fn on_mouse(
-        &mut self,
-        _app_state: &mut AppState,
-        _button: &MouseButton,
-        _button_state: &ElementState,
-    ) -> Result<()> {
-        Ok(())
-    }
+    fn on_mouse(&mut self, _app_state: &mut AppState, _button: &MouseButton, _button_state: &ElementState) -> Result<()> { Ok(()) }
     fn on_key(&mut self, _app_state: &mut AppState, _input: KeyboardInput) -> Result<()> { Ok(()) }
 
-    fn handle_event(&mut self, _app_state: &mut AppState, _event: &Event<()>) -> Result<()> {
-        Ok(())
-    }
+    fn handle_event(&mut self, _app_state: &mut AppState, _event: &Event<()>) -> Result<()> { Ok(()) }
 }
 
 pub struct AppConfig {
@@ -159,9 +148,7 @@ pub fn run_application<T: App + 'static>(config: AppConfig) -> Result<()> {
 
     let gui_render = GuiRenderWgpu::new(&device, config.format, 1);
 
-    let loop_helper = LoopHelper::builder()
-        .report_interval_s(1.0)
-        .build_with_target_rate(60);
+    let loop_helper = LoopHelper::builder().report_interval_s(1.0).build_with_target_rate(60);
 
     let mut app_state = AppState {
         window,
@@ -191,12 +178,7 @@ pub fn run_application<T: App + 'static>(config: AppConfig) -> Result<()> {
     });
 }
 
-fn run_loop(
-    app: &mut impl App,
-    app_state: &mut AppState,
-    event: Event<()>,
-    control_flow: &mut ControlFlow,
-) -> Result<()> {
+fn run_loop(app: &mut impl App, app_state: &mut AppState, event: Event<()>, control_flow: &mut ControlFlow) -> Result<()> {
     *control_flow = ControlFlow::Poll;
 
     app_state.input_state.handle_event(&event);
@@ -213,11 +195,9 @@ fn run_loop(
                 app_state.config.width = physical_size.width;
                 app_state.config.height = physical_size.height;
                 if physical_size.width > 0 && physical_size.height > 0 {
-                    app_state
-                        .surface
-                        .configure(&app_state.device, &app_state.config);
+                    app_state.surface.configure(&app_state.device, &app_state.config);
                 }
-            }
+            },
             WindowEvent::CloseRequested
             | WindowEvent::KeyboardInput {
                 input:
@@ -228,27 +208,23 @@ fn run_loop(
                     },
                 ..
             } => *control_flow = ControlFlow::Exit,
-            WindowEvent::MouseInput { button, state, .. } => {
-                app.on_mouse(app_state, button, state)?
-            }
+            WindowEvent::MouseInput { button, state, .. } => app.on_mouse(app_state, button, state)?,
             WindowEvent::KeyboardInput { input, .. } => {
                 app.on_key(app_state, *input)?;
-            }
+            },
             _ => (),
         },
         Event::RedrawRequested(_) => {
             // TODO move that
             // TODO: fix render method here by calling sub app render features
             let full_output = {
-                let _frame_data = app_state
-                    .gui
-                    .start_frame(app_state.window.scale_factor() as _);
+                let _frame_data = app_state.gui.start_frame(app_state.window.scale_factor() as _);
                 app.render_gui(&app_state.gui.context())?;
                 app_state.gui.end_frame(&mut app_state.window)
             };
 
             match render_app(app, app_state, full_output) {
-                Ok(_) => {}
+                Ok(_) => {},
                 // TODO: Reconfigure the surface if lost
                 // Err(wgpu::SurfaceError::Lost) => { }
                 // The system is out of memory, we should probably quit
@@ -256,7 +232,7 @@ fn run_loop(
                 // All other errors (Outdated, Timeout) should be resolved by the next frame
                 Err(e) => eprintln!("{:?}", e),
             }
-        }
+        },
         Event::MainEventsCleared => {
             app.update(app_state)?;
 
@@ -271,25 +247,19 @@ fn run_loop(
 
             app_state.loop_helper.loop_sleep_no_spin(); // or `loop_sleep_no_spin()` to save battery
             app_state.loop_helper.loop_start();
-        }
+        },
         Event::LoopDestroyed => {
             app.cleanup()?;
-        }
+        },
         _ => (),
     }
 
     Ok(())
 }
 
-pub fn render_app(
-    app: &mut impl App,
-    app_state: &mut AppState,
-    gui_output: egui::FullOutput,
-) -> Result<(), wgpu::SurfaceError> {
+pub fn render_app(app: &mut impl App, app_state: &mut AppState, gui_output: egui::FullOutput) -> Result<(), wgpu::SurfaceError> {
     let output: wgpu::SurfaceTexture = app_state.surface.get_current_texture()?;
-    let view = output
-        .texture
-        .create_view(&wgpu::TextureViewDescriptor::default());
+    let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
     let mut encoder: wgpu::CommandEncoder = app_state
         .device

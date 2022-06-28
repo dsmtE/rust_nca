@@ -2,15 +2,7 @@ use nalgebra_glm as glm;
 use std::time::Instant;
 use winit::{
     dpi::PhysicalSize,
-    event::{
-        ElementState,
-        Event,
-        KeyboardInput,
-        MouseButton,
-        MouseScrollDelta,
-        VirtualKeyCode,
-        WindowEvent,
-    },
+    event::{ElementState, Event, KeyboardInput, MouseButton, MouseScrollDelta, VirtualKeyCode, WindowEvent},
 };
 
 pub type KeyMap = std::collections::HashMap<VirtualKeyCode, ElementState>;
@@ -35,10 +27,9 @@ impl WinitEventHandler for InputsState {
     fn handle_event<T>(&mut self, event: &Event<T>) {
         if let Event::WindowEvent { event, .. } = event {
             if let WindowEvent::KeyboardInput {
-                input:
-                    KeyboardInput {
-                        virtual_keycode: Some(keycode), state, ..
-                    },
+                input: KeyboardInput {
+                    virtual_keycode: Some(keycode), state, ..
+                },
                 ..
             } = *event
             {
@@ -74,33 +65,33 @@ impl WinitEventHandler for MouseState {
                     self.position_delta = glm::vec2(0.0, 0.0);
                 }
                 self.moved = false;
-            }
+            },
             Event::WindowEvent { event, .. } => match *event {
                 WindowEvent::MouseInput { button, state, .. } => {
                     let clicked = state == ElementState::Pressed;
                     match button {
                         MouseButton::Left => self.is_left_clicked = clicked,
                         MouseButton::Right => self.is_right_clicked = clicked,
-                        _ => {}
+                        _ => {},
                     }
-                }
+                },
                 WindowEvent::CursorMoved { position, .. } => {
                     let last_position = self.position;
                     let current_position = glm::vec2(position.x as _, position.y as _);
                     self.position = current_position;
                     self.position_delta = current_position - last_position;
                     self.moved = true;
-                }
+                },
                 WindowEvent::MouseWheel {
                     delta: MouseScrollDelta::LineDelta(h_lines, v_lines),
                     ..
                 } => {
                     self.wheel_delta = glm::vec2(h_lines, v_lines);
                     self.scrolled = true;
-                }
-                _ => {}
+                },
+                _ => {},
             },
-            _ => {}
+            _ => {},
         }
     }
 }
@@ -128,12 +119,7 @@ impl SystemState {
         width as f32 / height as f32
     }
 
-    pub fn window_center(&self) -> glm::Vec2 {
-        glm::vec2(
-            self.window_dimensions.width as f32 / 2.0,
-            self.window_dimensions.height as f32 / 2.0,
-        )
-    }
+    pub fn window_center(&self) -> glm::Vec2 { glm::vec2(self.window_dimensions.width as f32 / 2.0, self.window_dimensions.height as f32 / 2.0) }
 }
 
 impl WinitEventHandler for SystemState {
@@ -142,15 +128,15 @@ impl WinitEventHandler for SystemState {
             Event::NewEvents { .. } => {
                 self.delta_time = self.last_frame.elapsed().as_secs_f64();
                 self.last_frame = Instant::now();
-            }
+            },
             Event::WindowEvent { event, .. } => match *event {
                 WindowEvent::CloseRequested => self.exit_requested = true,
                 WindowEvent::Resized(dimensions) => {
                     self.window_dimensions = dimensions;
-                }
-                _ => {}
+                },
+                _ => {},
             },
-            _ => {}
+            _ => {},
         }
     }
 }
