@@ -1,10 +1,6 @@
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
-use std::{
-    fs::File,
-    io::{Read, Write},
-    path::Path,
-};
+use std::{fs::File, path::Path};
 
 use crate::nca_app::DisplayFramesMode;
 
@@ -30,21 +26,11 @@ impl Default for Preset {
 
 pub fn load_preset<P: AsRef<Path>>(path: P) -> anyhow::Result<Preset> {
     let string_path: &str = path.as_ref().to_str().unwrap_or("");
-    let mut file = File::open(path.as_ref()).with_context(|| format!("Could not open file `{}`", string_path))?;
-
-    let mut buf = vec![];
-    file.read_to_end(&mut buf)
-        .with_context(|| format!("Could not read file `{}`", string_path))?;
-
-    serde_json::from_slice(&buf[..]).with_context(|| format!("Unable to Parse the file `{}`", string_path))
+    let file = File::open(path.as_ref()).with_context(|| format!("Could not open file `{}`", string_path))?;
+    serde_json::from_reader(std::io::BufReader::new(file)).with_context(|| format!("Unable to Parse the file `{}`", string_path))
 }
 
-pub fn save_preset<P: AsRef<Path>>(path: P, preset: &Preset) -> std::io::Result<()> {
-    let mut f = File::create(path)?;
-    let buf = serde_json::to_vec(preset)?;
-    f.write_all(&buf[..])?;
-    Ok(())
-}
+pub fn save_preset<P: AsRef<Path>>(path: P, preset: &Preset) -> std::io::Result<()> { std::fs::write(path, serde_json::to_string_pretty(preset)?) }
 
 pub fn get_presets() -> std::collections::HashMap<String, Preset> {
     std::collections::HashMap::from([
