@@ -1,5 +1,6 @@
 use crevice::std140::AsStd140;
 use nalgebra_glm as glm;
+use serde::{Deserialize, Serialize};
 
 /// Something to view
 pub trait UiWidget {
@@ -61,7 +62,7 @@ impl<'a> UiWidget for CodeEditor<'a> {
 
 // https://iquilezles.org/articles/palettes/
 #[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq, AsStd140)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, AsStd140)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct IqGradient {
     a: glm::Vec3,

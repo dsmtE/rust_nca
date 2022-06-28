@@ -2,13 +2,14 @@ use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::{fs::File, path::Path};
 
-use crate::nca_app::DisplayFramesMode;
+use crate::{egui_widgets::IqGradient, nca_app::DisplayFramesMode};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Preset {
     pub kernel: [f32; 9],
     pub activation_code: String,
     pub display_frames_mode: DisplayFramesMode,
+    pub gradient: IqGradient,
 }
 
 impl Default for Preset {
@@ -20,6 +21,7 @@ impl Default for Preset {
             }"
             .to_owned(),
             display_frames_mode: DisplayFramesMode::All,
+            gradient: IqGradient::default(),
         }
     }
 }
@@ -46,6 +48,7 @@ return vec4<f32>(r, r, r, 1.0);
 }"
                 .to_owned(),
                 display_frames_mode: DisplayFramesMode::All,
+                gradient: IqGradient::default(),
             },
         ),
         (
@@ -62,6 +65,7 @@ return vec4<f32>(r, r, r, 1.0);
 }"
                 .to_owned(),
                 display_frames_mode: DisplayFramesMode::Evens,
+                gradient: IqGradient::default(),
             },
         ),
         (
@@ -77,6 +81,7 @@ return vec4<f32>(r, r, r, 1.0);
 }"
                 .to_owned(),
                 display_frames_mode: DisplayFramesMode::All,
+                gradient: IqGradient::default(),
             },
         ),
         (
@@ -90,6 +95,7 @@ return vec4<f32>(r, r, r, 1.0);
 }"
                 .to_owned(),
                 display_frames_mode: DisplayFramesMode::All,
+                gradient: IqGradient::default(),
             },
         ),
         (
@@ -107,6 +113,7 @@ return vec4<f32>(r, r, r, 1.0);
 }"
                 .to_owned(),
                 display_frames_mode: DisplayFramesMode::All,
+                gradient: IqGradient::default(),
             },
         ),
         (
@@ -123,6 +130,7 @@ return vec4<f32>(r, r, r, 1.0);
 }"
                 .to_owned(),
                 display_frames_mode: DisplayFramesMode::All,
+                gradient: IqGradient::default(),
             },
         ),
         (
@@ -146,6 +154,7 @@ return vec4<f32>(r, r, r, 1.0);
 }"
                 .to_owned(),
                 display_frames_mode: DisplayFramesMode::All,
+                gradient: IqGradient::default(),
             },
         ),
         (
@@ -169,6 +178,7 @@ return vec4<f32>(r, r, r, 1.0);
 }"
                 .to_owned(),
                 display_frames_mode: DisplayFramesMode::Evens,
+                gradient: IqGradient::default(),
             },
         ),
         (
@@ -192,6 +202,7 @@ return vec4<f32>(r, r, r, 1.0);
 }"
                 .to_owned(),
                 display_frames_mode: DisplayFramesMode::Evens,
+                gradient: IqGradient::default(),
             },
         ),
     ])

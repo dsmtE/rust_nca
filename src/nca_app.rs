@@ -119,6 +119,9 @@ impl NcaApp {
 
         self.display_frames_mode = preset.display_frames_mode;
 
+        self.view_data.uniform.gradient = preset.gradient;
+        self.view_data.need_update = true;
+
         Ok(())
     }
 
@@ -127,6 +130,7 @@ impl NcaApp {
             kernel: self.simulation_data.uniform.kernel.clone(),
             activation_code: self.activation_code.clone(),
             display_frames_mode: self.display_frames_mode.clone(),
+            gradient: self.view_data.uniform.gradient.clone(),
         };
 
         preset::save_preset(filepath, &current_preset)
