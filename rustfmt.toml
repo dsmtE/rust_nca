@@ -1,5 +1,6 @@
 use_small_heuristics = "Default"
-fn_call_width = 80
+max_width = 150
+fn_call_width = 100
 struct_lit_width = 40
 struct_variant_width = 40
 single_line_if_else_max_width = 60
@@ -16,3 +17,5 @@ struct_lit_single_line = true
 use_try_shorthand = true
 trailing_comma = "Vertical"
 use_field_init_shorthand = true
+match_arm_blocks = false
+match_block_trailing_comma = true
