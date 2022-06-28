@@ -73,12 +73,7 @@ pub struct IqGradient {
 
 impl Default for IqGradient {
     fn default() -> Self {
-        Self {
-            a: glm::vec3(0.5, 0.5, 0.5),
-            b: glm::vec3(0.5, 0.5, 0.5),
-            c: glm::vec3(1.0, 1.0, 1.0),
-            d: glm::vec3(0.0, 0.33, 0.67),
-        }
+        IqGradient::grey()
     }
 }
 
@@ -87,6 +82,15 @@ impl IqGradient {
         let angle: glm::Vec3 = std::f32::consts::TAU * (self.c * t + self.d);
         let cos: glm::Vec3 = glm::Vec3::from_iterator(angle.as_slice().into_iter().map(|x| x.cos()).into_iter());
         self.a + self.b.component_mul(&cos)
+    }
+
+    fn grey() -> Self {
+        Self {
+            a: glm::vec3(0.63, 0.63, 0.63),
+            b: glm::vec3(1.0, 1.0, 1.0),
+            c: glm::vec3(0.172, 0.172, 0.172),
+            d: glm::vec3(0.641, 0.641, 0.641),
+        }
     }
 }
 
