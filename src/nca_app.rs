@@ -30,7 +30,7 @@ use pipeline_helpers::{
     get_texture_descriptor,
 };
 use preset::Preset;
-use simulation_data::{InitSimulationData, SimulationData};
+use simulation_data::{InitSimulationData, SimulationData, KernelSymmetryMode};
 use view_data::ViewData;
 
 use crate::{
@@ -82,6 +82,7 @@ pub struct NcaApp {
     simulation_textures: PingPongTexture,
     init_simulation_data: InitSimulationData,
     simulation_data: SimulationData,
+    kernel_symmetry_mode: KernelSymmetryMode,
     init: bool,
 
     bind_group_display_ping: wgpu::BindGroup,
@@ -111,7 +112,7 @@ impl NcaApp {
     pub fn load_preset_from_file<P: AsRef<Path>>(&mut self, filepath: &P) -> Result<()> { self.load_preset(preset::load_preset(filepath)?) }
 
     pub fn load_preset(&mut self, preset: Preset) -> Result<()> {
-        self.simulation_data.uniform.kernel = preset.kernel;
+        self.simulation_data.uniform.set_kernel(preset.kernel);
         self.simulation_data.need_update = true;
 
         self.activation_code = preset.activation_code;
@@ -127,10 +128,11 @@ impl NcaApp {
 
     pub fn save_preset<P: AsRef<Path>>(&self, filepath: &P) -> std::io::Result<()> {
         let current_preset = Preset {
-            kernel: self.simulation_data.uniform.kernel.clone(),
+            kernel: self.simulation_data.uniform.get_kernel(),
             activation_code: self.activation_code.clone(),
             display_frames_mode: self.display_frames_mode.clone(),
             gradient: self.view_data.uniform.gradient.clone(),
+            kernel_symmetry_mode: self.kernel_symmetry_mode,
         };
 
         preset::save_preset(filepath, &current_preset)
@@ -248,7 +250,7 @@ impl App for NcaApp {
         let init_simulation_data = InitSimulationData::new(&_app_state.device);
 
         let mut simulation_data = SimulationData::new(&_app_state.device, &simulation_size);
-        simulation_data.uniform.kernel = default_preset.kernel;
+        simulation_data.uniform.set_kernel(default_preset.kernel);
         simulation_data.need_update = true;
 
         let view_data = ViewData::new(&_app_state.device);
@@ -355,6 +357,7 @@ impl App for NcaApp {
             shader_state: ShaderState::Compiled,
             display_frames_mode: DisplayFramesMode::All,
             view_data,
+            kernel_symmetry_mode: KernelSymmetryMode::Any,
         }
     }
 
@@ -504,10 +507,10 @@ impl App for NcaApp {
                             ui.add(
                                 egui::DragValue::from_get_set(|optional_value: Option<f64>| {
                                     if let Some(v) = optional_value {
-                                        self.simulation_data.uniform.kernel[j * 3 + i] = v as f32;
+                                        self.simulation_data.uniform.set_kernel_at(j * 3 + i, v as f32, self.kernel_symmetry_mode);
                                         self.simulation_data.need_update = true;
                                     }
-                                    self.simulation_data.uniform.kernel[j * 3 + i] as f64
+                                    self.simulation_data.uniform.get_kernel_at(j * 3 + i) as f64
                                 })
                                 .speed(0.1),
                             );
@@ -515,12 +518,49 @@ impl App for NcaApp {
                         ui.end_row();
                     }
                 });
+                ui.horizontal(|ui| {
+                    ui.label("Symmetry mode: ");
+                    egui::ComboBox::from_id_source("Symmetry mode: ")
+                        .selected_text(self.kernel_symmetry_mode.to_string())
+                        .show_ui(ui, |ui| {
+                            let mut changed: bool = false;
+                            changed |= ui.selectable_value(&mut self.kernel_symmetry_mode, KernelSymmetryMode::Any, KernelSymmetryMode::Any.to_string()).changed();
+                            changed |= ui.selectable_value(&mut self.kernel_symmetry_mode, KernelSymmetryMode::Vertical, KernelSymmetryMode::Vertical.to_string()).changed();
+                            changed |= ui.selectable_value(&mut self.kernel_symmetry_mode, KernelSymmetryMode::Horizontal, KernelSymmetryMode::Horizontal.to_string()).changed();
+                            changed |= ui.selectable_value(&mut self.kernel_symmetry_mode, KernelSymmetryMode::Full, KernelSymmetryMode::Full.to_string()).changed();
+                            if changed { self.simulation_data.uniform.apply_symmetry(self.kernel_symmetry_mode); }
+                        });
+                });
 
                 ui.separator();
                 if ui.button("randomise kernel").clicked() {
                     let mut rng = rand::thread_rng();
-                    for i in 0..9 {
-                        self.simulation_data.uniform.kernel[i] = rng.gen::<f32>();
+                    match self.kernel_symmetry_mode {
+                        KernelSymmetryMode::Any => {
+                            for i in 0..9 {
+                                self.simulation_data.uniform.set_kernel_at(i, rng.gen::<f32>(), KernelSymmetryMode::Any);
+                            }
+                        },
+                        KernelSymmetryMode::Vertical => {
+                            for i in 0..6 {
+                                self.simulation_data.uniform.set_kernel_at((i%3)*3+i/3, rng.gen::<f32>(), KernelSymmetryMode::Any);
+                            }
+                            self.simulation_data.uniform.apply_symmetry(KernelSymmetryMode::Vertical);
+                        },
+                        KernelSymmetryMode::Horizontal => {
+                            for i in 0..6 {
+                                self.simulation_data.uniform.set_kernel_at(i, rng.gen::<f32>(), KernelSymmetryMode::Any);
+                            }
+                            self.simulation_data.uniform.apply_symmetry(KernelSymmetryMode::Horizontal);
+                        },
+                        KernelSymmetryMode::Full => {
+                            for i in 0..2 {
+                                for j in 0..2 {
+                                    self.simulation_data.uniform.set_kernel_at(j*3+i, rng.gen::<f32>(), KernelSymmetryMode::Any);
+                                }
+                            }
+                            self.simulation_data.uniform.apply_symmetry(KernelSymmetryMode::Full);
+                        },
                     }
                     self.simulation_data.need_update = true;
                 }

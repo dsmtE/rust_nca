@@ -1,11 +1,33 @@
 use rand::Rng;
 use wgpu::util::DeviceExt;
+use serde::{Deserialize, Serialize};
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct SimulationUniforms {
     pixel_size: [f32; 2],
-    pub kernel: [f32; 9],
+    kernel: [f32; 9],
     align: f32,
+}
+
+
+#[derive(Deserialize, Serialize, Debug, Copy, Clone, PartialEq)]
+pub enum KernelSymmetryMode {
+    Any,
+    Vertical,
+    Horizontal,
+    Full
+}
+
+//TODO: learn to make macro for that
+impl std::fmt::Display for KernelSymmetryMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            KernelSymmetryMode::Any => write!(f, "Any"),
+            KernelSymmetryMode::Vertical => write!(f, "Vertical"),
+            KernelSymmetryMode::Horizontal => write!(f, "Horizontal"),
+            KernelSymmetryMode::Full => write!(f, "Full"),
+        }
+    }
 }
 
 impl SimulationUniforms {
@@ -15,6 +37,86 @@ impl SimulationUniforms {
             kernel: [1.0, 1.0, 1.0, 1.0, 9.0, 1.0, 1.0, 1.0, 1.0],
             align: 0.0,
         }
+    }
+
+    pub fn set_kernel_at(&mut self, index: usize, value: f32, mode: KernelSymmetryMode) {
+        self.kernel[index] = value;
+        self.apply_symmetry_at(index, mode);
+    }
+
+    pub fn get_kernel_at(&self, index: usize) -> f32 { self.kernel[index] }
+
+    pub fn get_kernel(&self) -> [f32; 9] { self.kernel.clone() }
+
+    pub fn set_kernel(&mut self, new_kernel: [f32; 9]) {
+        self.kernel = new_kernel;
+    }
+
+    pub fn apply_symmetry(&mut self, mode: KernelSymmetryMode) {
+        const N: usize = 3;
+        const HALF_IDX: usize = (N+1)/2-1;
+        
+        match mode {
+            KernelSymmetryMode::Any => (),
+            KernelSymmetryMode::Vertical => {
+                for i in 0..HALF_IDX {
+                    for j in 0..N {
+                        self.kernel[j*N+(N-1 - i%N)] = self.kernel[j*N+i];
+                    }
+                }
+            },
+            KernelSymmetryMode::Horizontal => {
+                for i in 0..N {
+                    for j in 0..HALF_IDX {
+                        self.kernel[(N-1 - j/N)*N+i] = self.kernel[j*N+i];
+                    }
+                }
+            },
+            KernelSymmetryMode::Full => {
+                self.apply_symmetry(KernelSymmetryMode::Horizontal);
+                self.apply_symmetry(KernelSymmetryMode::Vertical);
+            },
+        }
+    }
+
+    fn apply_symmetry_at(&mut self, index: usize, mode: KernelSymmetryMode) {
+        const N: usize = 3;
+        const HALF_IDX: usize = (N+1)/2-1;
+
+        if index == HALF_IDX*N + HALF_IDX { return; } // center
+        
+        match mode {
+            KernelSymmetryMode::Any => (),
+            KernelSymmetryMode::Vertical => {
+                if index%N != HALF_IDX {
+                    self.kernel[vertical_symmetry_idx(index)] = self.kernel[index];
+                }
+            },
+            KernelSymmetryMode::Horizontal => {
+                if index/N != HALF_IDX {
+                    self.kernel[horizontal_symmetry_idx(index)] = self.kernel[index];
+                }
+            },
+            KernelSymmetryMode::Full => {
+                self.kernel[vertical_symmetry_idx(index)] = self.kernel[index];
+                self.kernel[horizontal_symmetry_idx(index)] = self.kernel[index];
+                self.kernel[vertical_symmetry_idx(horizontal_symmetry_idx(index))] = self.kernel[index];
+
+                // Apply symmetry on rotated index
+                let rotated_idx = rot_anticlockwise_idx(index);
+                self.kernel[rotated_idx] = self.kernel[index];
+                self.kernel[vertical_symmetry_idx(rotated_idx)] = self.kernel[rotated_idx];
+                self.kernel[horizontal_symmetry_idx(rotated_idx)] = self.kernel[rotated_idx];
+                self.kernel[vertical_symmetry_idx(horizontal_symmetry_idx(rotated_idx))] = self.kernel[rotated_idx];
+            }
+        }
+
+        #[inline(always)]
+        fn vertical_symmetry_idx(i: usize) -> usize { (i/N)*N + (N-1 - i%N) }
+        #[inline(always)]
+        fn horizontal_symmetry_idx(i: usize) -> usize { (N-1 - i/N)*N + i%N }
+        #[inline(always)]
+        fn rot_anticlockwise_idx(i: usize) -> usize { (N-1 - i%N)*N + i/N }
     }
 }
 

@@ -2,11 +2,13 @@ use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::{fs::File, path::Path};
 
+use crate::nca_app::simulation_data::KernelSymmetryMode;
 use crate::{egui_widgets::IqGradient, nca_app::DisplayFramesMode};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Preset {
     pub kernel: [f32; 9],
+    pub kernel_symmetry_mode: KernelSymmetryMode,
     pub activation_code: String,
     pub display_frames_mode: DisplayFramesMode,
     pub gradient: IqGradient,
@@ -16,6 +18,7 @@ impl Default for Preset {
     fn default() -> Self {
         Preset {
             kernel: [1., 1., 1., 1., 9., 1., 1., 1., 1.],
+            kernel_symmetry_mode: KernelSymmetryMode::Any,
             activation_code: "fn activationFunction(kernelOutput: f32) -> vec4<f32> {
                 return vec4<f32>(kernelOutput, kernelOutput, kernelOutput, 1.0);
             }"
@@ -40,6 +43,7 @@ pub fn get_presets() -> std::collections::HashMap<String, Preset> {
             "Game Of life".to_owned(),
             Preset {
                 kernel: [1., 1., 1., 1., 9., 1., 1., 1., 1.],
+                kernel_symmetry_mode: KernelSymmetryMode::Any,
                 activation_code: "
 fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
 var condition: bool = kernelOutput.x == 3.0 || kernelOutput.x == 11.0 || kernelOutput.x == 12.0;
@@ -55,6 +59,7 @@ return vec4<f32>(r, r, r, 1.0);
             "Slime".to_owned(),
             Preset {
                 kernel: [0.8, -0.85, 0.8, -0.85, -0.2, -0.85, 0.8, -0.85, 0.8],
+                kernel_symmetry_mode: KernelSymmetryMode::Any,
                 activation_code: "
 // an inverted gaussian function, 
 // where f(0) = 0. 
@@ -74,6 +79,7 @@ return vec4<f32>(r, r, r, 1.0);
                 kernel: [
                     0.564599, -0.715900, 0.564599, -0.715900, 0.626900, -0.715900, 0.564599, -0.715900, 0.564599,
                 ],
+                kernel_symmetry_mode: KernelSymmetryMode::Any,
                 activation_code: "
 fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
 var r: f32 = abs(1.2*kernelOutput.x);
@@ -88,6 +94,7 @@ return vec4<f32>(r, r, r, 1.0);
             "Stars".to_owned(),
             Preset {
                 kernel: [0.56459, -0.71590, 0.56459, -0.75859, 0.62690, -0.75859, 0.56459, -0.71590, 0.56459],
+                kernel_symmetry_mode: KernelSymmetryMode::Any,
                 activation_code: "
 fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
 var r: f32 = abs(kernelOutput.x);
@@ -102,6 +109,7 @@ return vec4<f32>(r, r, r, 1.0);
             "Pathways".to_owned(),
             Preset {
                 kernel: [0., 1., 0., 1., 1., 1., 0., 1., 0.],
+                kernel_symmetry_mode: KernelSymmetryMode::Any,
                 activation_code: "
 fn gaussian(x: f32, b: f32) -> f32{
 return 1./pow(2., (pow(x-b, 2.)));
@@ -120,6 +128,7 @@ return vec4<f32>(r, r, r, 1.0);
             "Mitosis".to_owned(),
             Preset {
                 kernel: [-0.939, 0.879, -0.939, 0.879, 0.4, 0.879, -0.939, 0.879, -0.939],
+                kernel_symmetry_mode: KernelSymmetryMode::Any,
                 activation_code: "
 // an inverted gaussian function, 
 // where f(0) = 0. 
@@ -147,6 +156,7 @@ return vec4<f32>(r, r, r, 1.0);
                     -0.7663648128509521,
                     0.7795687913894653,
                 ],
+                kernel_symmetry_mode: KernelSymmetryMode::Any,
                 activation_code: "
 fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
 var r: f32 = -1. / pow(2., (pow(kernelOutput.x, 2.)))+1.;
@@ -171,6 +181,7 @@ return vec4<f32>(r, r, r, 1.0);
                     -0.7149999737739563,
                     0.5669999718666077,
                 ],
+                kernel_symmetry_mode: KernelSymmetryMode::Any,
                 activation_code: "
 fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
 var r: f32 = abs(kernelOutput.x);
@@ -195,6 +206,7 @@ return vec4<f32>(r, r, r, 1.0);
                     -59.281097412109375,
                     91.627685546875,
                 ],
+                kernel_symmetry_mode: KernelSymmetryMode::Any,
                 activation_code: "
 fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
 var r: f32 = (exp(2.*kernelOutput.x) - 1.) / (exp(2.*kernelOutput.x) + 1.);
