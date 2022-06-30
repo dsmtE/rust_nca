@@ -37,10 +37,11 @@ pub fn load_preset<P: AsRef<Path>>(path: P) -> anyhow::Result<Preset> {
 
 pub fn save_preset<P: AsRef<Path>>(path: P, preset: &Preset) -> std::io::Result<()> { std::fs::write(path, serde_json::to_string_pretty(preset)?) }
 
-pub fn get_presets() -> std::collections::HashMap<String, Preset> {
-    std::collections::HashMap::from([
+
+lazy_static! {
+    pub static ref PRESETS: std::collections::HashMap<&'static str, Preset> = std::collections::HashMap::from([
         (
-            "Game Of life".to_owned(),
+            "Game Of life",
             Preset {
                 kernel: [1., 1., 1., 1., 9., 1., 1., 1., 1.],
                 kernel_symmetry_mode: KernelSymmetryMode::Any,
@@ -56,7 +57,7 @@ return vec4<f32>(r, r, r, 1.0);
             },
         ),
         (
-            "Slime".to_owned(),
+            "Slime",
             Preset {
                 kernel: [0.8, -0.85, 0.8, -0.85, -0.2, -0.85, 0.8, -0.85, 0.8],
                 kernel_symmetry_mode: KernelSymmetryMode::Any,
@@ -74,7 +75,7 @@ return vec4<f32>(r, r, r, 1.0);
             },
         ),
         (
-            "Waves".to_owned(),
+            "Waves",
             Preset {
                 kernel: [
                     0.564599, -0.715900, 0.564599, -0.715900, 0.626900, -0.715900, 0.564599, -0.715900, 0.564599,
@@ -91,7 +92,7 @@ return vec4<f32>(r, r, r, 1.0);
             },
         ),
         (
-            "Stars".to_owned(),
+            "Stars",
             Preset {
                 kernel: [0.56459, -0.71590, 0.56459, -0.75859, 0.62690, -0.75859, 0.56459, -0.71590, 0.56459],
                 kernel_symmetry_mode: KernelSymmetryMode::Any,
@@ -106,7 +107,7 @@ return vec4<f32>(r, r, r, 1.0);
             },
         ),
         (
-            "Pathways".to_owned(),
+            "Pathways",
             Preset {
                 kernel: [0., 1., 0., 1., 1., 1., 0., 1., 0.],
                 kernel_symmetry_mode: KernelSymmetryMode::Any,
@@ -125,7 +126,7 @@ return vec4<f32>(r, r, r, 1.0);
             },
         ),
         (
-            "Mitosis".to_owned(),
+            "Mitosis",
             Preset {
                 kernel: [-0.939, 0.879, -0.939, 0.879, 0.4, 0.879, -0.939, 0.879, -0.939],
                 kernel_symmetry_mode: KernelSymmetryMode::Any,
@@ -143,7 +144,7 @@ return vec4<f32>(r, r, r, 1.0);
             },
         ),
         (
-            "Blob".to_owned(),
+            "Blob",
             Preset {
                 kernel: [
                     0.7795687913894653,
@@ -168,7 +169,7 @@ return vec4<f32>(r, r, r, 1.0);
             },
         ),
         (
-            "test".to_owned(),
+            "test",
             Preset {
                 kernel: [
                     0.5669999718666077,
@@ -193,7 +194,7 @@ return vec4<f32>(r, r, r, 1.0);
             },
         ),
         (
-            "test2".to_owned(),
+            "test2",
             Preset {
                 kernel: [
                     91.627685546875,
@@ -217,5 +218,5 @@ return vec4<f32>(r, r, r, 1.0);
                 gradient: IqGradient::default(),
             },
         ),
-    ])
+    ]);
 }

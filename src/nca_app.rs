@@ -18,7 +18,6 @@ use skeleton_app::{App, AppState};
 use epi;
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 use nalgebra_glm as glm;
 
@@ -29,7 +28,8 @@ use pipeline_helpers::{
     get_simulation_textures_and_bind_groups,
     get_texture_descriptor,
 };
-use preset::Preset;
+use preset::{Preset, PRESETS};
+
 use simulation_data::{InitSimulationData, SimulationData, KernelSymmetryMode};
 use view_data::ViewData;
 
@@ -67,7 +67,6 @@ pub enum DisplayFramesMode {
 }
 
 pub struct NcaApp {
-    presets_list: HashMap<String, Preset>,
     clear_color: wgpu::Color,
     simulation_size_state: SimulationSizeState,
     primitive_state: wgpu::PrimitiveState,
@@ -236,9 +235,7 @@ impl NcaApp {
 
 impl App for NcaApp {
     fn create(_app_state: &mut AppState) -> Self {
-        let presets_list = preset::get_presets();
-
-        let (_, default_preset) = presets_list.iter().next().unwrap();
+        let (_, default_preset) = PRESETS.iter().next().unwrap();
         let activation_code = default_preset.activation_code.clone();
 
         let size = _app_state.window.inner_size();
@@ -319,7 +316,6 @@ impl App for NcaApp {
         );
 
         Self {
-            presets_list,
             clear_color: wgpu::Color { r: 0.1, g: 0.2, b: 0.3, a: 1.0 },
             simulation_size_state: SimulationSizeState::Compiled(simulation_size),
             primitive_state,
@@ -438,10 +434,10 @@ impl App for NcaApp {
                 });
                 ui.menu_button("Preset", |ui| {
                     egui::ScrollArea::vertical().show(ui, |ui| {
-                        let mut preset_to_apply: Option<(String, Preset)> = None;
-                        for (name, preset) in self.presets_list.iter() {
-                            if ui.button(name).clicked() {
-                                preset_to_apply = Some((name.clone(), preset.clone()));
+                        let mut preset_to_apply: Option<(&'static str, Preset)> = None;
+                        for (name, preset) in PRESETS.iter() {
+                            if ui.button(*name).clicked() {
+                                preset_to_apply = Some((name, preset.clone()));
                             }
                         }
                         if let Some((preset_name, preset)) = preset_to_apply {
