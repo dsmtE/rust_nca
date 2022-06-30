@@ -448,6 +448,7 @@ impl App for NcaApp {
                             self.load_preset(preset).unwrap_or_else(|error| {
                                 println!("Unable to load selected preset : {}.\n {:?}", preset_name, error);
                             });
+                            ui.close_menu();
                         }
                     });
                 });
