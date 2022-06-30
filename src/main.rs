@@ -4,6 +4,9 @@ mod egui_widgets;
 mod syntax_highlighting;
 mod utils;
 
+#[macro_use]
+extern crate lazy_static;
+
 use nca_app::NcaApp;
 fn main() {
     skeleton_app::run_application::<NcaApp>(skeleton_app::AppConfig {

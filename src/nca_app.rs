@@ -34,7 +34,7 @@ use simulation_data::{InitSimulationData, SimulationData, KernelSymmetryMode};
 use view_data::ViewData;
 
 use crate::{
-    egui_widgets::{CodeEditor, UiWidget},
+    egui_widgets::{CodeEditor, UiWidget, IQ_GRADIENT_PRESETS, IqGradient},
     utils::ping_pong_texture::PingPongTexture,
 };
 
@@ -626,6 +626,23 @@ impl App for NcaApp {
                 if self.view_data.uniform.gradient.ui_control(ui) {
                     self.view_data.need_update = true;
                 }
+
+                ui.menu_button("Preset", |ui| {
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        let mut preset_to_apply: Option<IqGradient> = None;
+                        for (name, preset) in IQ_GRADIENT_PRESETS.iter() {
+                            if ui.button(*name).clicked() {
+                                preset_to_apply = Some(preset.clone());
+                            }
+                        }
+                        if let Some(preset) = preset_to_apply {
+                            self.view_data.uniform.gradient = preset;
+                            self.view_data.need_update = true;
+                            ui.close_menu();
+                        }
+                    });
+                });
+
             });
 
             ui.allocate_space(ui.available_size());

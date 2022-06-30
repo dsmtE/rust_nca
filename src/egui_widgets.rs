@@ -72,9 +72,7 @@ pub struct IqGradient {
 }
 
 impl Default for IqGradient {
-    fn default() -> Self {
-        IqGradient::grey()
-    }
+    fn default() -> Self { IQ_GRADIENT_PRESETS["Grey"] }
 }
 
 impl IqGradient {
@@ -83,15 +81,38 @@ impl IqGradient {
         let cos: glm::Vec3 = glm::Vec3::from_iterator(angle.as_slice().into_iter().map(|x| x.cos()).into_iter());
         self.a + self.b.component_mul(&cos)
     }
+}
 
-    fn grey() -> Self {
-        Self {
-            a: glm::vec3(0.63, 0.63, 0.63),
-            b: glm::vec3(1.0, 1.0, 1.0),
-            c: glm::vec3(0.172, 0.172, 0.172),
-            d: glm::vec3(0.641, 0.641, 0.641),
-        }
-    }
+lazy_static! {
+    pub static ref IQ_GRADIENT_PRESETS: std::collections::HashMap<&'static str,IqGradient> = std::collections::HashMap::from([
+        (
+            "Grey",
+            IqGradient{
+                a: glm::vec3(0.63, 0.63, 0.63),
+                b: glm::vec3(1.0, 1.0, 1.0),
+                c: glm::vec3(0.172, 0.172, 0.172),
+                d: glm::vec3(0.641, 0.641, 0.641),
+            }
+        ),
+        (
+            "Colorful",
+            IqGradient{
+                a: glm::vec3(0.5, 0.5, 0.5),
+                b: glm::vec3(0.5, 0.5, 0.5),
+                c: glm::vec3(1.0, 1.0, 1.0),
+                d: glm::vec3(0.0, 0.33, 0.67),
+            }
+        ),
+        (
+            "BlueAndSand",
+            IqGradient{
+                a: glm::vec3(0.091, 0.363, 0.406),
+                b: glm::vec3(0.405, 0.242, 0.363),
+                c: glm::vec3(0.314, 0.304, 0.243),
+                d: glm::vec3(0.697, 0.707, 1.0),
+            }
+        ),
+    ]);
 }
 
 impl IqGradient {
