@@ -34,7 +34,7 @@ use simulation_data::{InitSimulationData, SimulationData, KernelSymmetryMode};
 use view_data::ViewData;
 
 use crate::{
-    egui_widgets::{CodeEditor, UiWidget, IQ_GRADIENT_PRESETS, IqGradient},
+    egui_widgets::{CodeEditor, UiWidget, IQ_GRADIENT_PRESETS, IqGradient, DisplayableVec2},
     utils::ping_pong_texture::PingPongTexture,
 };
 
@@ -84,6 +84,7 @@ pub struct NcaApp {
     kernel_symmetry_mode: KernelSymmetryMode,
     init: bool,
     reset_on_randomize: bool,
+    kernel_rand_range: DisplayableVec2,
 
     bind_group_display_ping: wgpu::BindGroup,
     bind_group_display_pong: wgpu::BindGroup,
@@ -235,7 +236,7 @@ impl NcaApp {
 
     fn randomise_kernel(&mut self) {
         let mut rng = rand::thread_rng();
-        let range: std::ops::Range<f32> = -1.0..1.0;
+        let range: std::ops::Range<f32> = self.kernel_rand_range.x..self.kernel_rand_range.y;
         match self.kernel_symmetry_mode {
             KernelSymmetryMode::Any => {
                 for i in 0..9 {
@@ -366,7 +367,7 @@ impl App for NcaApp {
             simulation_data,
             init: false,
             reset_on_randomize: true,
-
+            kernel_rand_range: DisplayableVec2(glm::vec2(-1.0, 1.0)),
             bind_group_display_ping,
             bind_group_display_pong,
             bind_group_simulation_ping,
@@ -574,6 +575,11 @@ impl App for NcaApp {
                         self.init = false;
                     }
                 }
+                
+                ui.horizontal(|ui| {
+                    ui.label("Range: ");
+                    ui.add(&mut self.kernel_rand_range);
+                });
             });
 
             egui::CollapsingHeader::new("Simulation").default_open(true).show(ui, |ui| {
