@@ -231,6 +231,39 @@ impl NcaApp {
         self.simulation_data.set_simulation_size(&new_simulation_size);
         Ok(())
     }
+
+    fn randomise_kernel(&mut self) {
+        let mut rng = rand::thread_rng();
+        let range: std::ops::Range<f32> = -1.0..1.0;
+        match self.kernel_symmetry_mode {
+            KernelSymmetryMode::Any => {
+                for i in 0..9 {
+                    self.simulation_data.uniform.set_kernel_at(i, rng.gen_range(range.clone()), KernelSymmetryMode::Any);
+                }
+            },
+            KernelSymmetryMode::Vertical => {
+                for i in 0..6 {
+                    self.simulation_data.uniform.set_kernel_at((i%3)*3+i/3, rng.gen_range(range.clone()), KernelSymmetryMode::Any);
+                }
+                self.simulation_data.uniform.apply_symmetry(KernelSymmetryMode::Vertical);
+            },
+            KernelSymmetryMode::Horizontal => {
+                for i in 0..6 {
+                    self.simulation_data.uniform.set_kernel_at(i, rng.gen_range(range.clone()), KernelSymmetryMode::Any);
+                }
+                self.simulation_data.uniform.apply_symmetry(KernelSymmetryMode::Horizontal);
+            },
+            KernelSymmetryMode::Full => {
+                for i in 0..2 {
+                    for j in 0..2 {
+                        self.simulation_data.uniform.set_kernel_at(j*3+i, rng.gen_range(range.clone()), KernelSymmetryMode::Any);
+                    }
+                }
+                self.simulation_data.uniform.apply_symmetry(KernelSymmetryMode::Full);
+            },
+        }
+        self.simulation_data.need_update = true;
+    }
 }
 
 impl App for NcaApp {
@@ -531,35 +564,7 @@ impl App for NcaApp {
 
                 ui.separator();
                 if ui.button("randomise kernel").clicked() {
-                    let mut rng = rand::thread_rng();
-                    match self.kernel_symmetry_mode {
-                        KernelSymmetryMode::Any => {
-                            for i in 0..9 {
-                                self.simulation_data.uniform.set_kernel_at(i, rng.gen::<f32>(), KernelSymmetryMode::Any);
-                            }
-                        },
-                        KernelSymmetryMode::Vertical => {
-                            for i in 0..6 {
-                                self.simulation_data.uniform.set_kernel_at((i%3)*3+i/3, rng.gen::<f32>(), KernelSymmetryMode::Any);
-                            }
-                            self.simulation_data.uniform.apply_symmetry(KernelSymmetryMode::Vertical);
-                        },
-                        KernelSymmetryMode::Horizontal => {
-                            for i in 0..6 {
-                                self.simulation_data.uniform.set_kernel_at(i, rng.gen::<f32>(), KernelSymmetryMode::Any);
-                            }
-                            self.simulation_data.uniform.apply_symmetry(KernelSymmetryMode::Horizontal);
-                        },
-                        KernelSymmetryMode::Full => {
-                            for i in 0..2 {
-                                for j in 0..2 {
-                                    self.simulation_data.uniform.set_kernel_at(j*3+i, rng.gen::<f32>(), KernelSymmetryMode::Any);
-                                }
-                            }
-                            self.simulation_data.uniform.apply_symmetry(KernelSymmetryMode::Full);
-                        },
-                    }
-                    self.simulation_data.need_update = true;
+                    self.randomise_kernel();
                 }
             });
 
