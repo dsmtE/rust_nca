@@ -83,6 +83,7 @@ pub struct NcaApp {
     simulation_data: SimulationData,
     kernel_symmetry_mode: KernelSymmetryMode,
     init: bool,
+    reset_on_randomize: bool,
 
     bind_group_display_ping: wgpu::BindGroup,
     bind_group_display_pong: wgpu::BindGroup,
@@ -364,6 +365,7 @@ impl App for NcaApp {
             init_simulation_data,
             simulation_data,
             init: false,
+            reset_on_randomize: true,
 
             bind_group_display_ping,
             bind_group_display_pong,
@@ -528,6 +530,8 @@ impl App for NcaApp {
                     self.init_simulation_data.uniform.initialisation_mode = 0;
                     self.init_simulation_data.need_update = true;
                 }
+
+                ui.checkbox(&mut self.reset_on_randomize, "reset on randomize");
             });
 
             egui::CollapsingHeader::new("Kernel").default_open(true).show(ui, |ui| {
@@ -565,6 +569,10 @@ impl App for NcaApp {
                 ui.separator();
                 if ui.button("randomise kernel").clicked() {
                     self.randomise_kernel();
+
+                    if self.reset_on_randomize {
+                        self.init = false;
+                    }
                 }
             });
 
