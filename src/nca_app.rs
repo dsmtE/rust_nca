@@ -599,6 +599,22 @@ impl App for NcaApp {
                 if let ShaderState::CompilationFail(error) = &self.shader_state {
                     ui.label(format!("Shader compile error:\n {}", error));
                 }
+                
+                ui.menu_button("Activation Presets", |ui| {
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        let mut preset_to_apply: Option<&'static str> = None;
+                        for (name, preset) in ACTIVATION_FUNCTIONS_PRESETS.iter() {
+                            if ui.button(*name).clicked() {
+                                preset_to_apply = Some(preset);
+                            }
+                        }
+                        if let Some(preset) = preset_to_apply {
+                            self.activation_code = preset.to_owned();
+                            self.shader_state = ShaderState::Dirty;
+                            ui.close_menu();
+                        }
+                    });
+                });
 
                 if ui.button("Recompile").clicked() {
                     self.shader_state = ShaderState::Dirty;
@@ -643,7 +659,7 @@ impl App for NcaApp {
                     self.view_data.need_update = true;
                 }
 
-                ui.menu_button("Preset", |ui| {
+                ui.menu_button("Gradient Presets", |ui| {
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         let mut preset_to_apply: Option<IqGradient> = None;
                         for (name, preset) in IQ_GRADIENT_PRESETS.iter() {
@@ -829,4 +845,57 @@ impl App for NcaApp {
 
         Ok(())
     }
+}
+
+
+lazy_static! {
+    pub static ref ACTIVATION_FUNCTIONS_PRESETS: std::collections::HashMap<&'static str, &'static str> = std::collections::HashMap::from([
+        (
+            "Identity","
+fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
+var r: f32 = kernelOutput.x;
+return vec4<f32>(r, r, r, 1.0);
+}"
+        ),
+        (
+            "Sin","
+fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
+var r: f32 = sin(kernelOutput.x);
+return vec4<f32>(r, r, r, 1.0);
+}"
+        ),
+        (
+            "Abs","
+fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
+var r: f32 = abs(kernelOutput.x);
+return vec4<f32>(r, r, r, 1.0);
+}"
+        ),
+        (
+            "Power","
+fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
+var r: f32 = pow(kernelOutput.x, 2.0);
+return vec4<f32>(r, r, r, 1.0);
+}"
+        ),
+        (
+            "Tanh","
+fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
+var r: f32 = (exp(2. * kernelOutput.x) -1.) / (exp(2. * kernelOutput.x) + 1.);
+return vec4<f32>(r, r, r, 1.0);
+}"
+        ),
+        (
+            " inverted gaussian","
+// an inverted gaussian function, 
+// where f(0) = 0. 
+// Graph: https://www.desmos.com/calculator/torawryxnq
+fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
+var r: f32 = -1./(0.89*pow(kernelOutput.x, 2.)+1.)+1.;
+return vec4<f32>(r, r, r, 1.0);
+}"
+        ),
+        
+        
+    ]);
 }
