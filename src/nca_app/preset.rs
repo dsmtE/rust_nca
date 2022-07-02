@@ -2,8 +2,10 @@ use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::{fs::File, path::Path};
 
-use crate::nca_app::simulation_data::KernelSymmetryMode;
-use crate::{egui_widgets::IqGradient, nca_app::DisplayFramesMode};
+use crate::{
+    egui_widgets::IqGradient,
+    nca_app::{simulation_data::KernelSymmetryMode, DisplayFramesMode},
+};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Preset {
@@ -36,7 +38,6 @@ pub fn load_preset<P: AsRef<Path>>(path: P) -> anyhow::Result<Preset> {
 }
 
 pub fn save_preset<P: AsRef<Path>>(path: P, preset: &Preset) -> std::io::Result<()> { std::fs::write(path, serde_json::to_string_pretty(preset)?) }
-
 
 lazy_static! {
     pub static ref PRESETS: std::collections::HashMap<&'static str, Preset> = std::collections::HashMap::from([
@@ -77,9 +78,7 @@ return vec4<f32>(r, r, r, 1.0);
         (
             "Waves",
             Preset {
-                kernel: [
-                    0.564599, -0.715900, 0.564599, -0.715900, 0.626900, -0.715900, 0.564599, -0.715900, 0.564599,
-                ],
+                kernel: [0.564599, -0.715900, 0.564599, -0.715900, 0.626900, -0.715900, 0.564599, -0.715900, 0.564599,],
                 kernel_symmetry_mode: KernelSymmetryMode::Any,
                 activation_code: "
 fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {

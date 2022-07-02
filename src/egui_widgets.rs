@@ -84,10 +84,10 @@ impl IqGradient {
 }
 
 lazy_static! {
-    pub static ref IQ_GRADIENT_PRESETS: std::collections::HashMap<&'static str,IqGradient> = std::collections::HashMap::from([
+    pub static ref IQ_GRADIENT_PRESETS: std::collections::HashMap<&'static str, IqGradient> = std::collections::HashMap::from([
         (
             "Grey",
-            IqGradient{
+            IqGradient {
                 a: glm::vec3(0.63, 0.63, 0.63),
                 b: glm::vec3(1.0, 1.0, 1.0),
                 c: glm::vec3(0.172, 0.172, 0.172),
@@ -96,7 +96,7 @@ lazy_static! {
         ),
         (
             "Colorful",
-            IqGradient{
+            IqGradient {
                 a: glm::vec3(0.5, 0.5, 0.5),
                 b: glm::vec3(0.5, 0.5, 0.5),
                 c: glm::vec3(1.0, 1.0, 1.0),
@@ -105,7 +105,7 @@ lazy_static! {
         ),
         (
             "BlueAndSand",
-            IqGradient{
+            IqGradient {
                 a: glm::vec3(0.091, 0.363, 0.406),
                 b: glm::vec3(0.405, 0.242, 0.363),
                 c: glm::vec3(0.314, 0.304, 0.243),
@@ -177,8 +177,6 @@ impl UiWidget for IqGradient {
     }
 }
 
-
-
 pub struct DisplayableVec2(pub(crate) nalgebra_glm::Vec2);
 
 impl egui::Widget for &mut DisplayableVec2 {
@@ -186,16 +184,26 @@ impl egui::Widget for &mut DisplayableVec2 {
         ui.horizontal(|ui| {
             ui.add(
                 egui::DragValue::from_get_set(|new_value: Option<f64>| {
-                    if let Some(value) = new_value { self.0.x = value as f32; }
+                    if let Some(value) = new_value {
+                        self.0.x = value as f32;
+                    }
                     self.0.x as f64
-                }).speed(1.0)
-            ).union(ui.add(
-                egui::DragValue::from_get_set(|new_value: Option<f64>| {
-                    if let Some(value) = new_value { self.0.y = value as f32; }
-                    self.0.y as f64
-                }).speed(1.0)
-            ))
-        }).response
+                })
+                .speed(1.0),
+            )
+            .union(
+                ui.add(
+                    egui::DragValue::from_get_set(|new_value: Option<f64>| {
+                        if let Some(value) = new_value {
+                            self.0.y = value as f32;
+                        }
+                        self.0.y as f64
+                    })
+                    .speed(1.0),
+                ),
+            )
+        })
+        .response
     }
 }
 

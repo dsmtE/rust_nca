@@ -30,11 +30,11 @@ use pipeline_helpers::{
 };
 use preset::{Preset, PRESETS};
 
-use simulation_data::{InitSimulationData, SimulationData, KernelSymmetryMode};
+use simulation_data::{InitSimulationData, KernelSymmetryMode, SimulationData};
 use view_data::ViewData;
 
 use crate::{
-    egui_widgets::{CodeEditor, UiWidget, IQ_GRADIENT_PRESETS, IqGradient, DisplayableVec2},
+    egui_widgets::{CodeEditor, DisplayableVec2, IqGradient, UiWidget, IQ_GRADIENT_PRESETS},
     utils::ping_pong_texture::PingPongTexture,
 };
 
@@ -238,27 +238,34 @@ impl NcaApp {
         let mut rng = rand::thread_rng();
         let range: std::ops::Range<f32> = self.kernel_rand_range.x..self.kernel_rand_range.y;
         match self.kernel_symmetry_mode {
-            KernelSymmetryMode::Any => {
+            KernelSymmetryMode::Any =>
                 for i in 0..9 {
-                    self.simulation_data.uniform.set_kernel_at(i, rng.gen_range(range.clone()), KernelSymmetryMode::Any);
-                }
-            },
+                    self.simulation_data
+                        .uniform
+                        .set_kernel_at(i, rng.gen_range(range.clone()), KernelSymmetryMode::Any);
+                },
             KernelSymmetryMode::Vertical => {
                 for i in 0..6 {
-                    self.simulation_data.uniform.set_kernel_at((i%3)*3+i/3, rng.gen_range(range.clone()), KernelSymmetryMode::Any);
+                    self.simulation_data
+                        .uniform
+                        .set_kernel_at((i % 3) * 3 + i / 3, rng.gen_range(range.clone()), KernelSymmetryMode::Any);
                 }
                 self.simulation_data.uniform.apply_symmetry(KernelSymmetryMode::Vertical);
             },
             KernelSymmetryMode::Horizontal => {
                 for i in 0..6 {
-                    self.simulation_data.uniform.set_kernel_at(i, rng.gen_range(range.clone()), KernelSymmetryMode::Any);
+                    self.simulation_data
+                        .uniform
+                        .set_kernel_at(i, rng.gen_range(range.clone()), KernelSymmetryMode::Any);
                 }
                 self.simulation_data.uniform.apply_symmetry(KernelSymmetryMode::Horizontal);
             },
             KernelSymmetryMode::Full => {
                 for i in 0..2 {
                     for j in 0..2 {
-                        self.simulation_data.uniform.set_kernel_at(j*3+i, rng.gen_range(range.clone()), KernelSymmetryMode::Any);
+                        self.simulation_data
+                            .uniform
+                            .set_kernel_at(j * 3 + i, rng.gen_range(range.clone()), KernelSymmetryMode::Any);
                     }
                 }
                 self.simulation_data.uniform.apply_symmetry(KernelSymmetryMode::Full);
@@ -559,11 +566,29 @@ impl App for NcaApp {
                         .selected_text(self.kernel_symmetry_mode.to_string())
                         .show_ui(ui, |ui| {
                             let mut changed: bool = false;
-                            changed |= ui.selectable_value(&mut self.kernel_symmetry_mode, KernelSymmetryMode::Any, KernelSymmetryMode::Any.to_string()).changed();
-                            changed |= ui.selectable_value(&mut self.kernel_symmetry_mode, KernelSymmetryMode::Vertical, KernelSymmetryMode::Vertical.to_string()).changed();
-                            changed |= ui.selectable_value(&mut self.kernel_symmetry_mode, KernelSymmetryMode::Horizontal, KernelSymmetryMode::Horizontal.to_string()).changed();
-                            changed |= ui.selectable_value(&mut self.kernel_symmetry_mode, KernelSymmetryMode::Full, KernelSymmetryMode::Full.to_string()).changed();
-                            if changed { self.simulation_data.uniform.apply_symmetry(self.kernel_symmetry_mode); }
+                            changed |= ui
+                                .selectable_value(&mut self.kernel_symmetry_mode, KernelSymmetryMode::Any, KernelSymmetryMode::Any.to_string())
+                                .changed();
+                            changed |= ui
+                                .selectable_value(
+                                    &mut self.kernel_symmetry_mode,
+                                    KernelSymmetryMode::Vertical,
+                                    KernelSymmetryMode::Vertical.to_string(),
+                                )
+                                .changed();
+                            changed |= ui
+                                .selectable_value(
+                                    &mut self.kernel_symmetry_mode,
+                                    KernelSymmetryMode::Horizontal,
+                                    KernelSymmetryMode::Horizontal.to_string(),
+                                )
+                                .changed();
+                            changed |= ui
+                                .selectable_value(&mut self.kernel_symmetry_mode, KernelSymmetryMode::Full, KernelSymmetryMode::Full.to_string())
+                                .changed();
+                            if changed {
+                                self.simulation_data.uniform.apply_symmetry(self.kernel_symmetry_mode);
+                            }
                         });
                 });
 
@@ -575,7 +600,7 @@ impl App for NcaApp {
                         self.init = false;
                     }
                 }
-                
+
                 ui.horizontal(|ui| {
                     ui.label("Range: ");
                     ui.add(&mut self.kernel_rand_range);
@@ -599,7 +624,7 @@ impl App for NcaApp {
                 if let ShaderState::CompilationFail(error) = &self.shader_state {
                     ui.label(format!("Shader compile error:\n {}", error));
                 }
-                
+
                 ui.menu_button("Activation Presets", |ui| {
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         let mut preset_to_apply: Option<&'static str> = None;
@@ -674,7 +699,6 @@ impl App for NcaApp {
                         }
                     });
                 });
-
             });
 
             ui.allocate_space(ui.available_size());
@@ -847,46 +871,51 @@ impl App for NcaApp {
     }
 }
 
-
 lazy_static! {
     pub static ref ACTIVATION_FUNCTIONS_PRESETS: std::collections::HashMap<&'static str, &'static str> = std::collections::HashMap::from([
         (
-            "Identity","
+            "Identity",
+            "
 fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
 var r: f32 = kernelOutput.x;
 return vec4<f32>(r, r, r, 1.0);
 }"
         ),
         (
-            "Sin","
+            "Sin",
+            "
 fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
 var r: f32 = sin(kernelOutput.x);
 return vec4<f32>(r, r, r, 1.0);
 }"
         ),
         (
-            "Abs","
+            "Abs",
+            "
 fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
 var r: f32 = abs(kernelOutput.x);
 return vec4<f32>(r, r, r, 1.0);
 }"
         ),
         (
-            "Power","
+            "Power",
+            "
 fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
 var r: f32 = pow(kernelOutput.x, 2.0);
 return vec4<f32>(r, r, r, 1.0);
 }"
         ),
         (
-            "Tanh","
+            "Tanh",
+            "
 fn activationFunction(kernelOutput: vec4<f32>) -> vec4<f32> {
 var r: f32 = (exp(2. * kernelOutput.x) -1.) / (exp(2. * kernelOutput.x) + 1.);
 return vec4<f32>(r, r, r, 1.0);
 }"
         ),
         (
-            " inverted gaussian","
+            " inverted gaussian",
+            "
 // an inverted gaussian function, 
 // where f(0) = 0. 
 // Graph: https://www.desmos.com/calculator/torawryxnq
@@ -895,7 +924,5 @@ var r: f32 = -1./(0.89*pow(kernelOutput.x, 2.)+1.)+1.;
 return vec4<f32>(r, r, r, 1.0);
 }"
         ),
-        
-        
     ]);
 }
