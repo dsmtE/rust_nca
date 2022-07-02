@@ -275,7 +275,7 @@ impl App for NcaApp {
 
         let size = _app_state.window.inner_size();
 
-        let simulation_size: [u32; 2] = [2000, 2000];
+        let simulation_size: [u32; 2] = [512, 512];
         // Texture
         let texture_desc = get_texture_descriptor(&simulation_size);
 
