@@ -241,7 +241,7 @@ fn run_loop(app: &mut impl App, app_state: &mut AppState, event: Event<()>, cont
             // window.request_redraw();
             app_state.window.request_redraw();
 
-            if let Some(fps) = app_state.loop_helper.report_rate() {
+            if let Some(_fps) = app_state.loop_helper.report_rate() {
                 // println!("fps report : {}", fps);
             }
 

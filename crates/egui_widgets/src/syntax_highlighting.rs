@@ -1,26 +1,5 @@
 use egui::text::LayoutJob;
 
-/// View some code with syntax highlighting and selection.
-pub fn code_view_ui(ui: &mut egui::Ui, mut code: &str) {
-    let language = "rs";
-    let theme = CodeTheme::from_memory(ui.ctx());
-
-    let mut layouter = |ui: &egui::Ui, string: &str, _wrap_width: f32| {
-        let layout_job = highlight(ui.ctx(), &theme, string, language);
-        // layout_job.wrap.max_width = wrap_width; // no wrapping
-        ui.fonts().layout_job(layout_job)
-    };
-
-    ui.add(
-        egui::TextEdit::multiline(&mut code)
-            .font(egui::TextStyle::Monospace) // for cursor height
-            .code_editor()
-            .desired_rows(1)
-            .lock_focus(true)
-            .layouter(&mut layouter),
-    );
-}
-
 /// Memoized Code highlighting
 pub fn highlight(ctx: &egui::Context, theme: &CodeTheme, code: &str, language: &str) -> LayoutJob {
     impl egui::util::cache::ComputerMut<(&CodeTheme, &str, &str), LayoutJob> for Highlighter {
@@ -323,7 +302,7 @@ impl Highlighter {
         let mut job = LayoutJob { text: text.into(), ..Default::default() };
 
         for line in LinesWithEndings::from(text) {
-            for (style, range) in h.highlight(line, &self.ps) {
+            for (style, range) in h.highlight_line(line, &self.ps).unwrap() {
                 let fg = style.foreground;
                 let text_color = egui::Color32::from_rgb(fg.r, fg.g, fg.b);
                 let italics = style.font_style.contains(FontStyle::ITALIC);
