@@ -1,4 +1,4 @@
-use crate::utils::ping_pong_texture::PingPongTexture;
+use wgpu_core_utils::PingPongTexture;
 
 use super::{
     simulation_data::{InitSimulationData, SimulationData},

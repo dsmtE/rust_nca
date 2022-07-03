@@ -1,0 +1,9 @@
+[package]
+name = "wgpu_core_utils"
+version = "0.1.0"
+authors = ["DE SMET Enguerrand"]
+edition = "2021"
+
+[dependencies]
+
+wgpu = "0.12.0"

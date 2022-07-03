@@ -1,7 +1,5 @@
 mod nca_app;
 
-mod utils;
-
 #[macro_use]
 extern crate lazy_static;
 

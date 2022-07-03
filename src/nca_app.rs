@@ -15,6 +15,7 @@ use std::{
 
 use skeleton_app::{App, AppState};
 use egui_widgets::{CodeEditor, nalgebra_helpers::DisplayableVec2, IqGradient, UiWidget, IQ_GRADIENT_PRESETS};
+use wgpu_core_utils::PingPongTexture;
 
 use epi;
 
@@ -33,8 +34,6 @@ use preset::{Preset, PRESETS};
 
 use simulation_data::{InitSimulationData, KernelSymmetryMode, SimulationData};
 use view_data::ViewData;
-
-use crate::{utils::ping_pong_texture::PingPongTexture};
 
 #[derive(Default)]
 pub struct Viewport {

@@ -10,6 +10,7 @@ members = ["crates/*"]
 [dependencies]
 skeleton_app = {path = "crates/skeleton_app"}
 egui_widgets = {path = "crates/egui_widgets", features = ["nalgebra", "serde", "syntax_highlighting"]}
+wgpu_core_utils = {path = "crates/wgpu_core_utils"}
 
 anyhow = "1.0.52"
 wgpu = "0.12.0"
