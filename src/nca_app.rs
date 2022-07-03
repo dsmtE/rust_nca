@@ -401,18 +401,26 @@ impl App for NcaApp {
     fn handle_event(&mut self, _app_state: &mut AppState, _event: &Event<()>) -> Result<()> {
         match _event {
             Event::WindowEvent { ref event, .. } => match event {
-                WindowEvent::CursorMoved { position, .. } => {
-                    let size = _app_state.window.inner_size();
-                    self.clear_color = wgpu::Color {
-                        r: position.x as f64 / size.width as f64,
-                        g: position.y as f64 / size.height as f64,
-                        b: 1.0,
-                        a: 1.0,
-                    };
+                WindowEvent::CursorMoved { .. } => {
+                    if _app_state.input_state.mouse.is_middle_clicked {
+                        let zoom_level = self.view_data.uniform.zoom_level;
+                        let window_scale_factor = _app_state.window.scale_factor() as f32;
+
+                        let mouse_delta = _app_state.input_state.mouse.position_delta;
+
+                        let viewport_size = glm::vec2(self.ui_central_viewport.width, self.ui_central_viewport.height) * window_scale_factor;
+
+                        let normalized_mouse_delta = mouse_delta.zip_map(&viewport_size, |md, vs| md / vs);
+
+                        // Shifting using the normalized mouse_delta, scaled using the zoom_level and constrained by the borders (depending on the zoom_level)
+                        self.view_data.uniform.center = (self.view_data.uniform.center - normalized_mouse_delta * zoom_level).map(|x| x.min(1. - 0.5 * zoom_level).max(0.5 * zoom_level));
+                        self.view_data.need_update = true;
+                    }
                 },
                 WindowEvent::MouseWheel {
                     delta: MouseScrollDelta::LineDelta(_, y), ..
                 } => {
+                    const ZOOM_SENSITIVITY: f32 = 1.08_f32;
                     let window_scale_factor = _app_state.window.scale_factor() as f32;
 
                     let mouse_pos = &_app_state.input_state.mouse.position;
@@ -422,7 +430,7 @@ impl App for NcaApp {
                     // let mouse_pos_within_simulation = self.view_data.uniform.center + (normalized_mouse_pos_within_viewport - glm::vec2(0.5, 0.5)) * self.view_data.uniform.zoom_level;
 
                     let old_zoom_level = self.view_data.uniform.zoom_level;
-                    self.view_data.uniform.zoom_level = (self.view_data.uniform.zoom_level * 1.08_f32.powf(-*y)).min(1.0);
+                    self.view_data.uniform.zoom_level = (self.view_data.uniform.zoom_level * ZOOM_SENSITIVITY.powf(-*y)).min(1.0);
 
                     let zoom_delta = old_zoom_level - self.view_data.uniform.zoom_level;
                     if *y > 0. {
