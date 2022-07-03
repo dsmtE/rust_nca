@@ -14,6 +14,7 @@ use std::{
 };
 
 use skeleton_app::{App, AppState};
+use egui_widgets::{CodeEditor, nalgebra_helpers::DisplayableVec2, IqGradient, UiWidget, IQ_GRADIENT_PRESETS};
 
 use epi;
 
@@ -33,10 +34,7 @@ use preset::{Preset, PRESETS};
 use simulation_data::{InitSimulationData, KernelSymmetryMode, SimulationData};
 use view_data::ViewData;
 
-use crate::{
-    egui_widgets::{CodeEditor, DisplayableVec2, IqGradient, UiWidget, IQ_GRADIENT_PRESETS},
-    utils::ping_pong_texture::PingPongTexture,
-};
+use crate::{utils::ping_pong_texture::PingPongTexture};
 
 #[derive(Default)]
 pub struct Viewport {
@@ -374,7 +372,7 @@ impl App for NcaApp {
             simulation_data,
             init: false,
             reset_on_randomize: true,
-            kernel_rand_range: DisplayableVec2(glm::vec2(-1.0, 1.0)),
+            kernel_rand_range: DisplayableVec2::new(glm::vec2(-1.0, 1.0)),
             bind_group_display_ping,
             bind_group_display_pong,
             bind_group_simulation_ping,

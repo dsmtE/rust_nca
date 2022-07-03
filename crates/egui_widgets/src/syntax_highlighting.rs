@@ -36,7 +36,7 @@ pub fn highlight(ctx: &egui::Context, theme: &CodeTheme, code: &str, language: &
 
 // ----------------------------------------------------------------------------
 
-#[cfg(not(feature = "syntect"))]
+#[cfg(not(feature = "syntax_highlighting"))]
 #[derive(Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(enum_map::Enum)]
@@ -49,7 +49,7 @@ enum TokenType {
     Whitespace,
 }
 
-#[cfg(feature = "syntect")]
+#[cfg(feature = "syntax_highlighting")]
 #[derive(Clone, Copy, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum SyntectTheme {
@@ -62,7 +62,7 @@ enum SyntectTheme {
     SolarizedLight,
 }
 
-#[cfg(feature = "syntect")]
+#[cfg(feature = "syntax_highlighting")]
 impl SyntectTheme {
     fn all() -> impl ExactSizeIterator<Item = Self> {
         [
@@ -117,10 +117,10 @@ impl SyntectTheme {
 pub struct CodeTheme {
     dark_mode: bool,
 
-    #[cfg(feature = "syntect")]
+    #[cfg(feature = "syntax_highlighting")]
     syntect_theme: SyntectTheme,
 
-    #[cfg(not(feature = "syntect"))]
+    #[cfg(not(feature = "syntax_highlighting"))]
     formats: enum_map::EnumMap<TokenType, egui::TextFormat>,
 }
 
@@ -154,7 +154,7 @@ impl CodeTheme {
     }
 }
 
-#[cfg(feature = "syntect")]
+#[cfg(feature = "syntax_highlighting")]
 impl CodeTheme {
     pub fn dark() -> Self {
         Self {
@@ -181,7 +181,7 @@ impl CodeTheme {
     }
 }
 
-#[cfg(not(feature = "syntect"))]
+#[cfg(not(feature = "syntax_highlighting"))]
 impl CodeTheme {
     pub fn dark() -> Self {
         let font_id = egui::FontId::monospace(12.0);
@@ -204,7 +204,7 @@ impl CodeTheme {
         use egui::{Color32, TextFormat};
         Self {
             dark_mode: false,
-            #[cfg(not(feature = "syntect"))]
+            #[cfg(not(feature = "syntax_highlighting"))]
             formats: enum_map::enum_map![
                 TokenType::Comment => TextFormat::simple(font_id.clone(), Color32::GRAY),
                 TokenType::Keyword => TextFormat::simple(font_id.clone(), Color32::from_rgb(235, 0, 0)),
@@ -272,13 +272,13 @@ impl CodeTheme {
 
 // ----------------------------------------------------------------------------
 
-#[cfg(feature = "syntect")]
+#[cfg(feature = "syntax_highlighting")]
 struct Highlighter {
     ps: syntect::parsing::SyntaxSet,
     ts: syntect::highlighting::ThemeSet,
 }
 
-#[cfg(feature = "syntect")]
+#[cfg(feature = "syntax_highlighting")]
 impl Default for Highlighter {
     fn default() -> Self {
         Self {
@@ -288,7 +288,7 @@ impl Default for Highlighter {
     }
 }
 
-#[cfg(feature = "syntect")]
+#[cfg(feature = "syntax_highlighting")]
 impl Highlighter {
     #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
     fn highlight(&self, theme: &CodeTheme, code: &str, lang: &str) -> LayoutJob {
@@ -351,7 +351,7 @@ impl Highlighter {
     }
 }
 
-#[cfg(feature = "syntect")]
+#[cfg(feature = "syntax_highlighting")]
 fn as_byte_range(whole: &str, range: &str) -> std::ops::Range<usize> {
     let whole_start = whole.as_ptr() as usize;
     let range_start = range.as_ptr() as usize;
@@ -363,11 +363,11 @@ fn as_byte_range(whole: &str, range: &str) -> std::ops::Range<usize> {
 
 // ----------------------------------------------------------------------------
 
-#[cfg(not(feature = "syntect"))]
+#[cfg(not(feature = "syntax_highlighting"))]
 #[derive(Default)]
 struct Highlighter {}
 
-#[cfg(not(feature = "syntect"))]
+#[cfg(not(feature = "syntax_highlighting"))]
 impl Highlighter {
     #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
     fn highlight(&self, theme: &CodeTheme, mut text: &str, _language: &str) -> LayoutJob {
@@ -411,7 +411,7 @@ impl Highlighter {
     }
 }
 
-#[cfg(not(feature = "syntect"))]
+#[cfg(not(feature = "syntax_highlighting"))]
 fn is_keyword(word: &str) -> bool {
     matches!(
         word,

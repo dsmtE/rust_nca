@@ -2,7 +2,7 @@ use crevice::std140::AsStd140;
 use nalgebra_glm as glm;
 use wgpu::util::DeviceExt;
 
-use crate::egui_widgets::IqGradient;
+use egui_widgets::IqGradient;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, AsStd140)]

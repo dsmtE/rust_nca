@@ -1,7 +1,5 @@
 mod nca_app;
 
-mod egui_widgets;
-mod syntax_highlighting;
 mod utils;
 
 #[macro_use]
