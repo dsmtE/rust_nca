@@ -15,8 +15,6 @@ anyhow = "1.0.52"
 wgpu = "0.12.0"
 bytemuck = { version = "1.7.3", features = [ "derive" ] }
 log = "0.4.14"
-env_logger = "0.9.0"
-chrono = "0.4.19"
 egui = "0.17.0"
 winit = "0.26.0"
 rand = "0.8.5"
@@ -24,9 +22,6 @@ epi = "0.17.0"
 
 serde = { version = "1.0.137", features = ["derive"] }
 serde_json = "1.0"
-
-enum-map = { version = "2", features = ["serde"] }
-
 nalgebra-glm = { version = "0.17.0", features = ["serde-serialize"] }
 
 crevice = { version = "0.10.0", features = ["nalgebra"] }

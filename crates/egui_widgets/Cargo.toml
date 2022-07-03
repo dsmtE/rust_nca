@@ -7,9 +7,6 @@ edition = "2021"
 [dependencies]
 
 egui = "0.17.0"
-epi = "0.17.0"
-egui_wgpu_backend = "0.17.0"
-egui_winit_platform = "0.14.0"
 
 serde = { version = "1.0.137", features = ["derive"], optional = true}
 enum-map = { version = "2"}
