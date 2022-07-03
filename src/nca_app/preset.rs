@@ -30,9 +30,13 @@ impl Default for Preset {
 }
 
 pub fn load_preset<P: AsRef<Path>>(path: P) -> anyhow::Result<Preset> {
-    let string_path: &str = path.as_ref().to_str().unwrap_or("");
-    let file = File::open(path.as_ref()).with_context(|| format!("Could not open file `{}`", string_path))?;
-    serde_json::from_reader(std::io::BufReader::new(file)).with_context(|| format!("Unable to Parse the file `{}`", string_path))
+    fn inner(path: &Path) -> anyhow::Result<Preset>  {
+        let string_path: &str = path.to_str().unwrap_or("");
+        let file = File::open(path).with_context(|| format!("Could not open file `{}`", string_path))?;
+        serde_json::from_reader(std::io::BufReader::new(file)).with_context(|| format!("Unable to Parse the file `{}`", string_path))
+    }
+
+    inner(path.as_ref())
 }
 
 pub fn save_preset<P: AsRef<Path>>(path: P, preset: &Preset) -> std::io::Result<()> { std::fs::write(path, serde_json::to_string_pretty(preset)?) }
