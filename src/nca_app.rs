@@ -53,7 +53,8 @@ pub enum ShaderState {
 
 pub enum SimulationSizeState {
     Compiled([u32; 2]),
-    Dirty([u32; 2]),
+    Dirty { old: [u32; 2], new: [u32; 2] },
+    ToCompile { old: [u32; 2], new: [u32; 2] },
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
@@ -495,19 +496,61 @@ impl App for NcaApp {
             ui.heading("Left Panel");
 
             egui::CollapsingHeader::new("Simulation settings").default_open(true).show(ui, |ui| {
-                ui.add(
-                    egui::DragValue::from_get_set(|optional_value: Option<f64>| {
-                        if let Some(v) = optional_value {
-                            self.simulation_size_state = SimulationSizeState::Dirty([v as u32, v as u32]);
+
+                if let SimulationSizeState::ToCompile{old, new} = self.simulation_size_state {
+                    ui.label(format!("Wait simulation pipeline compilation before changing the simulation size (from {:?} to {:?}).", old, new));
+                } else {
+                    const SPEED: f64 = 1.0; 
+                    ui.horizontal(|ui| {
+                        ui.label(if let SimulationSizeState::Compiled(..) = self.simulation_size_state  { "Simulation size: " } else { " New simulation size: " });
+                        ui.add(
+                            egui::DragValue::from_get_set(|optional_value: Option<f64>| {
+                                if let Some(v) = optional_value {
+                                    self.simulation_size_state = match self.simulation_size_state {
+                                        SimulationSizeState::Compiled(size) => SimulationSizeState::Dirty{old: size, new: [v as _, size[1]]},
+                                        SimulationSizeState::Dirty { old, new } => SimulationSizeState::Dirty{ old, new: [v as _, new[1]]},
+                                        _ => panic!("Should not possible du to if statement."),
+                                    }
+                                }
+                                match self.simulation_size_state {
+                                    SimulationSizeState::Compiled(size) => size[0] as f64,
+                                    SimulationSizeState::Dirty { new, .. } => new[0] as f64,
+                                    _ => panic!("Should not possible du to if statement."),
+                                }
+                            })
+                            .speed(SPEED)
+                        );
+
+                        ui.add(
+                            egui::DragValue::from_get_set(|optional_value: Option<f64>| {
+                                if let Some(v) = optional_value {
+                                    self.simulation_size_state = match self.simulation_size_state {
+                                        SimulationSizeState::Compiled(size) => SimulationSizeState::Dirty{old: size, new: [size[0], v as _]},
+                                        SimulationSizeState::Dirty { old, new } => SimulationSizeState::Dirty{ old, new: [new[0], v as _]},
+                                        _ => panic!("Should not possible du to if statement."),
+                                    }
+                                }
+                                match self.simulation_size_state {
+                                    SimulationSizeState::Compiled(size) => size[1] as f64,
+                                    SimulationSizeState::Dirty { new, .. } => new[1] as f64,
+                                    _ => panic!("Should not possible du to if statement."),
+                                }
+                            })
+                            .speed(SPEED)
+                        );
+                    });
+
+                    if let SimulationSizeState::Dirty{old, ..} = self.simulation_size_state {
+                        ui.label(format!("(Current simulation size: {:?})", old));
+                    };
+
+                    if ui.button("Update simulation size").clicked() {
+
+                        if let SimulationSizeState::Dirty{old, new} = self.simulation_size_state {
+                            self.simulation_size_state = SimulationSizeState::ToCompile { old, new };
                         }
-                        match self.simulation_size_state {
-                            SimulationSizeState::Compiled(size) => size[0] as f64,
-                            SimulationSizeState::Dirty(size) => size[0] as f64,
-                        }
-                    })
-                    .speed(1)
-                    .prefix("simulation size: "),
-                );
+                    }
+                }
             });
 
             egui::CollapsingHeader::new("Starting settings").default_open(true).show(ui, |ui| {
@@ -732,8 +775,8 @@ impl App for NcaApp {
             }
         }
 
-        if let SimulationSizeState::Dirty(new_simulation_size) = self.simulation_size_state {
-            match self.try_update_simulation_size(new_simulation_size, &mut _app_state.device, &_app_state.config) {
+        if let SimulationSizeState::ToCompile { new , .. } = self.simulation_size_state {
+            match self.try_update_simulation_size(new, &mut _app_state.device, &_app_state.config) {
                 Err(err) => match err {
                     wgpu::Error::OutOfMemory { .. } => {
                         anyhow::bail!("Shader compilation gpu::Error::OutOfMemory")
