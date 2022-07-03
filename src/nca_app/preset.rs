@@ -2,8 +2,8 @@ use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::{fs::File, path::Path};
 
-use egui_widgets::IqGradient;
 use crate::nca_app::{simulation_data::KernelSymmetryMode, DisplayFramesMode};
+use egui_widgets::IqGradient;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Preset {

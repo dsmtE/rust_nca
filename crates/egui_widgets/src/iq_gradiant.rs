@@ -1,4 +1,3 @@
-
 use nalgebra_glm as glm;
 
 // https://iquilezles.org/articles/palettes/

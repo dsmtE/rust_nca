@@ -13,8 +13,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+use egui_widgets::{nalgebra_helpers::DisplayableVec2, CodeEditor, IqGradient, UiWidget, IQ_GRADIENT_PRESETS};
 use skeleton_app::{App, AppState};
-use egui_widgets::{CodeEditor, nalgebra_helpers::DisplayableVec2, IqGradient, UiWidget, IQ_GRADIENT_PRESETS};
 use wgpu_core_utils::PingPongTexture;
 
 use epi;
