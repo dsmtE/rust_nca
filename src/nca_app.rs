@@ -510,7 +510,7 @@ impl App for NcaApp {
                 } else {
                     const SPEED: f64 = 1.0; 
                     ui.horizontal(|ui| {
-                        ui.label(if let SimulationSizeState::Compiled(..) = self.simulation_size_state  { "Simulation size: " } else { " New simulation size: " });
+                        ui.label(if let SimulationSizeState::Compiled(..) = self.simulation_size_state  { "Current simulation size: " } else { "Simulation size: " });
                         ui.add(
                             egui::DragValue::from_get_set(|optional_value: Option<f64>| {
                                 if let Some(v) = optional_value {
@@ -550,14 +550,13 @@ impl App for NcaApp {
 
                     if let SimulationSizeState::Dirty{old, ..} = self.simulation_size_state {
                         ui.label(format!("(Current simulation size: {:?})", old));
-                    };
+                        if ui.button("Update simulation size").clicked() {
 
-                    if ui.button("Update simulation size").clicked() {
-
-                        if let SimulationSizeState::Dirty{old, new} = self.simulation_size_state {
-                            self.simulation_size_state = SimulationSizeState::ToCompile { old, new };
+                            if let SimulationSizeState::Dirty{old, new} = self.simulation_size_state {
+                                self.simulation_size_state = SimulationSizeState::ToCompile { old, new };
+                            }
                         }
-                    }
+                    };
                 }
             });
 
@@ -783,14 +782,18 @@ impl App for NcaApp {
             }
         }
 
-        if let SimulationSizeState::ToCompile { new , .. } = self.simulation_size_state {
+        if let SimulationSizeState::ToCompile { old, new } = self.simulation_size_state {
             match self.try_update_simulation_size(new, &mut _app_state.device, &_app_state.config) {
-                Err(err) => match err {
-                    wgpu::Error::OutOfMemory { .. } => {
-                        anyhow::bail!("Shader compilation gpu::Error::OutOfMemory")
-                    },
-                    wgpu::Error::Validation { description, .. } => self.shader_state = ShaderState::CompilationFail(description),
-                },
+                Err(err) => {
+                    // Reset to dirty state
+                    self.simulation_size_state = SimulationSizeState::Dirty { old, new };
+                    match err {
+                        wgpu::Error::OutOfMemory { .. } => {
+                            anyhow::bail!("Shader compilation gpu::Error::OutOfMemory")
+                        },
+                        wgpu::Error::Validation { description, .. } => self.shader_state = ShaderState::CompilationFail(description),
+                    };
+                }
                 Ok(()) => {},
             }
         }
