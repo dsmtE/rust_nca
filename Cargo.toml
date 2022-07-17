@@ -12,23 +12,23 @@ skeleton_app = {path = "crates/skeleton_app"}
 egui_widgets = {path = "crates/egui_widgets", features = ["nalgebra", "serde", "syntax_highlighting"]}
 wgpu_core_utils = {path = "crates/wgpu_core_utils"}
 
-anyhow = "1.0.52"
-wgpu = "0.12.0"
-bytemuck = { version = "1.7.3", features = [ "derive" ] }
-log = "0.4.14"
-egui = "0.17.0"
-winit = "0.26.0"
-rand = "0.8.5"
-epi = "0.17.0"
+anyhow = "1"
+wgpu = "0.12"
+bytemuck = { version = "1", features = [ "derive" ] }
+log = "0.4"
+egui = "0.17"
+winit = "0.26"
+rand = "0.8"
+epi = "0.17"
 
-serde = { version = "1.0.137", features = ["derive"] }
-serde_json = "1.0"
-nalgebra-glm = { version = "0.17.0", features = ["serde-serialize"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+nalgebra-glm = { version = "0.17", features = ["serde-serialize"] }
 
-crevice = { version = "0.10.0", features = ["nalgebra"] }
-nfd2 = "0.3.1"
+crevice = { version = "0.11", features = ["nalgebra"] }
+nfd2 = "0.3"
 
-lazy_static = "1.4.0"
+lazy_static = "1"
 
 [[bin]]
 name = "rust_nca"
