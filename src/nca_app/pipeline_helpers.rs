@@ -1,4 +1,4 @@
-use wgpu_core_utils::PingPongTexture;
+use oxyde::wgpu_utils::PingPongTexture;
 
 use super::{
     simulation_data::{InitSimulationData, SimulationData},

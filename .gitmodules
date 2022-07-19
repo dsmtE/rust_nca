@@ -1,0 +1,3 @@
+[submodule "oxyde"]
+	path = crates/oxyde
+	url = https://github.com/dsmtE/oxyde

@@ -14,8 +14,7 @@ use std::{
 };
 
 use egui_widgets::{nalgebra_helpers::DisplayableVec2, CodeEditor, IqGradient, UiWidget, IQ_GRADIENT_PRESETS};
-use skeleton_app::{App, AppState};
-use wgpu_core_utils::PingPongTexture;
+use oxyde::{App, AppState, wgpu_utils::PingPongTexture};
 
 use epi;
 

@@ -8,9 +8,8 @@ edition = "2021"
 members = ["crates/*"]
 
 [dependencies]
-skeleton_app = {path = "crates/skeleton_app"}
+oxyde = {git = 'https://github.com/dsmtE/oxyde' }
 egui_widgets = {path = "crates/egui_widgets", features = ["nalgebra", "serde", "syntax_highlighting"]}
-wgpu_core_utils = {path = "crates/wgpu_core_utils"}
 
 anyhow = "1"
 wgpu = "0.12"
@@ -29,6 +28,10 @@ crevice = { version = "0.11", features = ["nalgebra"] }
 nfd2 = "0.3"
 
 lazy_static = "1"
+
+# Overriding repository URL to work with git submodules
+[patch."https://github.com/dsmtE/oxyde"]
+oxyde = { path = "crates/oxyde" }
 
 [[bin]]
 name = "rust_nca"
