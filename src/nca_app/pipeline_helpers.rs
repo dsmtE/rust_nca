@@ -77,7 +77,7 @@ pub fn build_simulation_pipeline(
         label: Some("Simulation Render Pipeline"),
         layout: Some(&device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Simulation Pipeline Layout"),
-            bind_group_layouts: &[&simulation_textures.bind_group_layout, &simulation_data.bind_group_layout],
+            bind_group_layouts: &[&simulation_textures.bind_group_layout.layout, &simulation_data.bind_group_layout],
             push_constant_ranges: &[],
         })),
         vertex: wgpu::VertexState {
@@ -114,7 +114,7 @@ pub fn build_screen_pipeline(
         label: Some("Screen Render Pipeline"),
         layout: Some(&device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Screen Pipeline Layout"),
-            bind_group_layouts: &[&simulation_textures.bind_group_layout, &view_data.bind_group_layout],
+            bind_group_layouts: &[&simulation_textures.bind_group_layout.layout, &view_data.bind_group_layout],
             push_constant_ranges: &[],
         })),
         vertex: wgpu::VertexState {
