@@ -8,9 +8,10 @@ pub fn highlight(ctx: &egui::Context, theme: &CodeTheme, code: &str, language: &
 
     type HighlightCache<'a> = egui::util::cache::FrameCache<LayoutJob, Highlighter>;
 
-    let mut memory = ctx.memory();
-    let highlight_cache = memory.caches.cache::<HighlightCache<'_>>();
-    highlight_cache.get((theme, code, language))
+    ctx.memory_mut(|memory| {
+        let highlight_cache = memory.caches.cache::<HighlightCache<'_>>();
+        highlight_cache.get((theme, code, language))
+    })
 }
 
 // ----------------------------------------------------------------------------
@@ -117,19 +118,19 @@ impl CodeTheme {
     }
 
     pub fn from_memory(ctx: &egui::Context) -> Self {
-        if ctx.style().visuals.dark_mode {
-            ctx.data().get_persisted(egui::Id::new("dark")).unwrap_or_else(CodeTheme::dark)
-        } else {
-            ctx.data().get_persisted(egui::Id::new("light")).unwrap_or_else(CodeTheme::light)
-        }
+
+        let dark_mode = ctx.style().visuals.dark_mode;
+
+        ctx.data_mut(|data| {
+            data.get_persisted(egui::Id::new(if dark_mode { "dark" } else { "light" }))
+                .unwrap_or_else(if dark_mode { CodeTheme::dark } else { CodeTheme::light })
+        })
     }
 
     pub fn store_in_memory(self, ctx: &egui::Context) {
-        if self.dark_mode {
-            ctx.data().insert_persisted(egui::Id::new("dark"), self);
-        } else {
-            ctx.data().insert_persisted(egui::Id::new("light"), self);
-        }
+        ctx.data_mut(|data| {
+            data.insert_persisted(egui::Id::new(if self.dark_mode { "dark" } else { "light" }), self);
+        });
     }
 }
 

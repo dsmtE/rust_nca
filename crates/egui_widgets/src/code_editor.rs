@@ -26,12 +26,12 @@ impl<'a> crate::UiWidget for CodeEditor<'a> {
 
         let mut layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
             let mut layout_job = crate::syntax_highlighting::highlight(ui.ctx(), &theme, string, self.language);
-            layout_job.wrap_width = wrap_width;
-            ui.fonts().layout_job(layout_job)
+            layout_job.wrap.max_width = wrap_width;
+            ui.fonts(|f| f.layout_job(layout_job))
         };
 
         let font = egui::TextStyle::Monospace.resolve(ui.style());
-        let height = ui.fonts().row_height(&font) * ((self.height_row + 1) as f32);
+        let height = ui.fonts(|f| {f.row_height(&font) }) * ((self.height_row + 1) as f32);
 
         egui::ScrollArea::vertical()
             .max_height(height)

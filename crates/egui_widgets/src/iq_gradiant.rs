@@ -62,10 +62,10 @@ impl crate::UiWidget for IqGradient {
                 for i in 0..=N {
                     let t = i as f32 / (N as f32);
                     let color: glm::Vec3 = self.evalue(t);
-                    let color32 = egui::color::Color32::from_rgb(
-                        egui::color::gamma_u8_from_linear_f32(color[0]),
-                        egui::color::gamma_u8_from_linear_f32(color[1]),
-                        egui::color::gamma_u8_from_linear_f32(color[2]),
+                    let color32 = egui::Color32::from_rgb(
+                        ecolor::gamma_u8_from_linear_f32(color[0]),
+                        ecolor::gamma_u8_from_linear_f32(color[1]),
+                        ecolor::gamma_u8_from_linear_f32(color[2]),
                     );
                     let x = egui::lerp(rect.left()..=rect.right(), t);
                     mesh.colored_vertex(egui::pos2(x, rect.top()), color32);
