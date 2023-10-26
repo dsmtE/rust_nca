@@ -1,5 +1,7 @@
 use crevice::std140::AsStd140;
 use nalgebra_glm as glm;
+use oxyde::wgpu as wgpu;
+
 use wgpu::util::DeviceExt;
 
 use egui_widgets::IqGradient;

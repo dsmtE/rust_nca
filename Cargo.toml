@@ -12,19 +12,15 @@ oxyde = {git = 'https://github.com/dsmtE/oxyde' }
 egui_widgets = {path = "crates/egui_widgets", features = ["nalgebra", "serde", "syntax_highlighting"]}
 
 anyhow = "1"
-wgpu = "0.12"
 bytemuck = { version = "1", features = [ "derive" ] }
 log = "0.4"
-egui = "0.17"
-winit = "0.26"
 rand = "0.8"
-epi = "0.17"
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-nalgebra-glm = { version = "0.17", features = ["serde-serialize"] }
+nalgebra-glm = { version = "0.18.0", features = ["serde-serialize"] }
 
-crevice = { version = "0.11", features = ["nalgebra"] }
+crevice = { version = "0.14.0", features = ["nalgebra"] }
 nfd2 = "0.3"
 
 lazy_static = "1"

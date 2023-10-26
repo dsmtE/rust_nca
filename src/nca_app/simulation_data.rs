@@ -1,12 +1,14 @@
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+
+use oxyde::wgpu as wgpu;
+
 use wgpu::util::DeviceExt;
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct SimulationUniforms {
     pixel_size: [f32; 2],
     kernel: [f32; 9],
-    align: f32,
 }
 
 #[derive(Deserialize, Serialize, Debug, Copy, Clone, PartialEq)]
@@ -34,7 +36,6 @@ impl SimulationUniforms {
         Self {
             pixel_size: simulation_size.map(|x| 1.0 / x as f32),
             kernel: [1.0, 1.0, 1.0, 1.0, 9.0, 1.0, 1.0, 1.0, 1.0],
-            align: 0.0,
         }
     }
 
@@ -47,7 +48,7 @@ impl SimulationUniforms {
 
     pub fn get_kernel(&self) -> [f32; 9] { self.kernel.clone() }
 
-    pub fn set_kernel(&mut self, new_kernel: [f32; 9]) { self.kernel = new_kernel; }
+    pub fn set_kernel(&mut self, new_kernel: [f32; 9]) { self.kernel[0..9].copy_from_slice(&new_kernel); }
 
     pub fn apply_symmetry(&mut self, mode: KernelSymmetryMode) {
         const N: usize = 3;

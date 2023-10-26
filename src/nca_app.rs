@@ -6,7 +6,9 @@ mod view_data;
 use anyhow::Result;
 use rand::Rng;
 
-use winit::event::{Event, MouseScrollDelta, WindowEvent};
+use oxyde::wgpu as wgpu;
+use oxyde::egui as egui;
+use oxyde::winit::event::{Event, MouseScrollDelta, WindowEvent};
 
 use std::{
     path::Path,
@@ -15,8 +17,6 @@ use std::{
 
 use egui_widgets::{nalgebra_helpers::DisplayableVec2, CodeEditor, IqGradient, UiWidget, IQ_GRADIENT_PRESETS};
 use oxyde::{App, AppState, wgpu_utils::PingPongTexture};
-
-use epi;
 
 use serde::{Deserialize, Serialize};
 
@@ -142,12 +142,12 @@ impl NcaApp {
         surface_configuration: &wgpu::SurfaceConfiguration,
     ) -> Result<(), wgpu::Error> {
         let (tx, rx) = std::sync::mpsc::channel::<wgpu::Error>();
-        device.on_uncaptured_error(move |e: wgpu::Error| {
+        device.on_uncaptured_error(Box::new(move |e: wgpu::Error| {
             tx.send(e).expect("sending error failed");
-        });
+        }));
 
         let shader_code: String = generate_simulation_shader(&self.activation_code);
-        let simulation_shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+        let simulation_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Simulation Shader"),
             source: wgpu::ShaderSource::Wgsl(shader_code.into()),
         });
@@ -163,7 +163,7 @@ impl NcaApp {
             &self.simulation_data,
         );
 
-        device.on_uncaptured_error(|e| panic!("{}", e));
+        device.on_uncaptured_error(Box::new(|err| panic!("{}", err)));
 
         if let Ok(err) = rx.try_recv() {
             return Err(err);
@@ -182,9 +182,9 @@ impl NcaApp {
         surface_configuration: &wgpu::SurfaceConfiguration,
     ) -> Result<(), wgpu::Error> {
         let (tx, rx) = std::sync::mpsc::channel::<wgpu::Error>();
-        device.on_uncaptured_error(move |e: wgpu::Error| {
+        device.on_uncaptured_error(Box::new(move |e: wgpu::Error| {
             tx.send(e).expect("sending error failed");
-        });
+        }));
 
         let texture_desc = get_texture_descriptor(&new_simulation_size);
 
@@ -212,7 +212,7 @@ impl NcaApp {
             &self.simulation_data,
         );
 
-        device.on_uncaptured_error(|e| panic!("{}", e));
+        device.on_uncaptured_error(Box::new(|err| panic!("{}", err)));
 
         if let Ok(err) = rx.try_recv() {
             return Err(err);
@@ -295,18 +295,18 @@ impl App for NcaApp {
             get_simulation_textures_and_bind_groups(&mut _app_state.device, &texture_desc).expect("");
 
         // Shaders
-        let screen_shader = _app_state.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+        let screen_shader = _app_state.device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Screne Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shaders/Screen.wgsl").into()),
         });
 
         let shader_code: String = generate_simulation_shader(&activation_code);
-        let simulation_shader = _app_state.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+        let simulation_shader = _app_state.device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Simulation Shader"),
             source: wgpu::ShaderSource::Wgsl(shader_code.into()),
         });
 
-        let init_simulation_shader = _app_state.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+        let init_simulation_shader = _app_state.device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Init Simulation Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shaders/init_simulation.wgsl").into()),
         });
@@ -451,7 +451,7 @@ impl App for NcaApp {
         Ok(())
     }
 
-    fn render_gui(&mut self, _ctx: &epi::egui::Context) -> Result<()> {
+    fn render_gui(&mut self, _ctx: &oxyde::egui::Context) -> Result<()> {
         egui::TopBottomPanel::top("top_panel").resizable(true).show(&_ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
@@ -658,9 +658,16 @@ impl App for NcaApp {
                 let mut code_editor = CodeEditor::new(&mut self.activation_code, "rs", Some(15));
                 code_editor.show(ui);
 
-                let code_to_paste: Option<String> = _ctx.input().events.iter().find_map(|e| match e {
-                    egui::Event::Paste(paste_content) => Some((*paste_content).to_owned()),
-                    _ => None,
+                // let code_to_paste: Option<String> = _ctx.input().events.iter().find_map(|e| match e {
+                //     egui::Event::Paste(paste_content) => Some((*paste_content).to_owned()),
+                //     _ => None,
+                // });
+
+                let code_to_paste: Option<String> = _ctx.input(|input_state| {
+                    input_state.events.iter().find_map(|e| match e {
+                        egui::Event::Paste(paste_content) => Some((*paste_content).to_owned()),
+                        _ => None,
+                    })
                 });
 
                 if let Some(new_code) = code_to_paste {
@@ -803,9 +810,13 @@ impl App for NcaApp {
     fn render(
         &mut self,
         _app_state: &mut AppState,
-        _encoder: &mut wgpu::CommandEncoder,
         _output_view: &wgpu::TextureView,
     ) -> Result<(), wgpu::SurfaceError> {
+
+        let mut encoder = _app_state
+                    .device
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("encoder") });
+
         if self.last_simulation_end.elapsed() > self.target_delta {
             // init if needed
             if self.init == false {
@@ -814,17 +825,20 @@ impl App for NcaApp {
                 if self.init_simulation_data.need_update {
                     self.init_simulation_data.update(&_app_state.queue);
                 }
-
-                let mut init_simulation_render_pass = _encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                
+                
+                let mut init_simulation_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("Init Simulation Render Pass"),
-                    color_attachments: &[wgpu::RenderPassColorAttachment {
-                        view: &self.simulation_textures.get_rendered_texture_view(),
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(self.clear_color),
-                            store: true,
-                        },
-                    }],
+                    color_attachments: &[
+                        Some(wgpu::RenderPassColorAttachment {
+                            view: &self.simulation_textures.get_rendered_texture_view(),
+                            resolve_target: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(self.clear_color),
+                                store: true,
+                            },
+                        })
+                    ],
                     depth_stencil_attachment: None,
                 });
 
@@ -839,16 +853,18 @@ impl App for NcaApp {
                     self.simulation_data.update(&_app_state.queue);
                 }
 
-                let mut simulation_render_pass = _encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                let mut simulation_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("Simulation Render Pass"),
-                    color_attachments: &[wgpu::RenderPassColorAttachment {
-                        view: self.simulation_textures.get_target_texture_view(),
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(self.clear_color),
-                            store: true,
-                        },
-                    }],
+                    color_attachments: &[
+                        Some(wgpu::RenderPassColorAttachment {
+                            view: self.simulation_textures.get_target_texture_view(),
+                            resolve_target: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(self.clear_color),
+                                store: true,
+                            },
+                        })
+                    ],
                     depth_stencil_attachment: None,
                 });
 
@@ -873,15 +889,15 @@ impl App for NcaApp {
                 self.view_data.update(&_app_state.queue);
             }
 
-            let mut screen_render_pass = _encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            let mut screen_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Screen Render Pass"),
                 color_attachments: &[
                     // This is what [[location(0)]] in the fragment shader targets
-                    wgpu::RenderPassColorAttachment {
+                    Some(wgpu::RenderPassColorAttachment {
                         view: &_output_view,
                         resolve_target: None,
                         ops: wgpu::Operations { load: wgpu::LoadOp::Load, store: true },
-                    },
+                    }),
                 ],
                 depth_stencil_attachment: None,
             });
@@ -916,6 +932,8 @@ impl App for NcaApp {
             screen_render_pass.set_bind_group(1, &self.view_data.bind_group, &[]);
             screen_render_pass.draw(0..3, 0..1);
         }
+
+        _app_state.queue.submit(Some(encoder.finish()));
 
         Ok(())
     }

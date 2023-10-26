@@ -1,4 +1,5 @@
 use oxyde::wgpu_utils::PingPongTexture;
+use oxyde::wgpu as wgpu;
 
 use super::{
     simulation_data::{InitSimulationData, SimulationData},
@@ -18,6 +19,7 @@ pub fn get_texture_descriptor(size: &[u32; 2]) -> wgpu::TextureDescriptor {
         format: wgpu::TextureFormat::Bgra8UnormSrgb,
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
         label: None,
+        view_formats: &[wgpu::TextureFormat::Bgra8UnormSrgb],
     }
 }
 
@@ -88,11 +90,13 @@ pub fn build_simulation_pipeline(
         fragment: Some(wgpu::FragmentState {
             module: &simulation_shader,
             entry_point: "fs_main",
-            targets: &[wgpu::ColorTargetState {
-                format: surface_configuration.format,
-                blend: Some(wgpu::BlendState::REPLACE),
-                write_mask: wgpu::ColorWrites::ALL,
-            }],
+            targets: &[
+                Some(wgpu::ColorTargetState {
+                    format: surface_configuration.format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })
+            ],
         }),
         primitive: *primitive_state,
         depth_stencil: None,
@@ -125,11 +129,13 @@ pub fn build_screen_pipeline(
         fragment: Some(wgpu::FragmentState {
             module: &screen_shader,
             entry_point: "fs_main",
-            targets: &[wgpu::ColorTargetState {
-                format: surface_configuration.format,
-                blend: Some(wgpu::BlendState::REPLACE),
-                write_mask: wgpu::ColorWrites::ALL,
-            }],
+            targets: &[
+                Some(wgpu::ColorTargetState {
+                    format: surface_configuration.format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })
+            ],
         }),
         primitive: *primitive_state,
         depth_stencil: None,
@@ -162,11 +168,13 @@ pub fn build_init_simulation_pipeline(
         fragment: Some(wgpu::FragmentState {
             module: &init_simulation_shader,
             entry_point: "fs_main",
-            targets: &[wgpu::ColorTargetState {
-                format: surface_configuration.format,
-                blend: Some(wgpu::BlendState::REPLACE),
-                write_mask: wgpu::ColorWrites::ALL,
-            }],
+            targets: &[
+                Some(wgpu::ColorTargetState {
+                    format: surface_configuration.format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })
+            ],
         }),
         primitive: *primitive_state,
         depth_stencil: None,
