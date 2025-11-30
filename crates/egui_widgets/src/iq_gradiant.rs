@@ -1,14 +1,20 @@
-use nalgebra_glm as glm;
+use crevice::std140::AsStd140;
+use glam::Vec3;
+
+// Vec3 to mut slice
+fn vec3_as_mut_slice(v: &mut Vec3) -> &mut [f32; 3] {
+    unsafe { &mut *(v as *mut Vec3 as *mut [f32; 3]) }
+}
 
 // https://iquilezles.org/articles/palettes/
 #[repr(C)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Clone, Copy, Debug, PartialEq, crevice::std140::AsStd140)]
+#[derive(Clone, Copy, Debug, PartialEq, AsStd140)]
 pub struct IqGradient {
-    a: glm::Vec3,
-    b: glm::Vec3,
-    c: glm::Vec3,
-    d: glm::Vec3,
+    a: Vec3,
+    b: Vec3,
+    c: Vec3,
+    d: Vec3,
 }
 
 impl Default for IqGradient {
@@ -16,10 +22,10 @@ impl Default for IqGradient {
 }
 
 impl IqGradient {
-    pub fn evalue(&self, t: f32) -> glm::Vec3 {
-        let angle: glm::Vec3 = std::f32::consts::TAU * (self.c * t + self.d);
-        let cos: glm::Vec3 = glm::Vec3::from_iterator(angle.as_slice().into_iter().map(|x| x.cos()).into_iter());
-        self.a + self.b.component_mul(&cos)
+    pub fn evalue(&self, t: f32) -> Vec3 {
+        let angle: Vec3 = std::f32::consts::TAU * (self.c * t + self.d);
+        let cos: Vec3 = angle.map(|x| x.cos());
+        self.a + self.b * cos
     }
 }
 
@@ -27,20 +33,19 @@ impl IqGradient {
     pub fn ui_control(&mut self, ui: &mut egui::Ui) -> bool {
         let mut changed: bool = false;
         ui.collapsing("gradient settings", |ui| {
-            let slicde_err_msg = "slice with incorrect length";
             ui.label("color(t) = a + b.cos(2π(c.t+d))");
             ui.hyperlink_to("read more about this", "https://iquilezles.org/articles/palettes/");
             egui::Grid::new("gradient settings").show(ui, |ui| {
                 ui.label("a:");
-                changed |= egui::color_picker::color_edit_button_rgb(ui, self.a.as_mut_slice().try_into().expect(slicde_err_msg)).changed();
+                changed |= egui::color_picker::color_edit_button_rgb(ui, vec3_as_mut_slice(&mut self.a)).changed();
                 ui.label("b:");
-                changed |= egui::color_picker::color_edit_button_rgb(ui, self.b.as_mut_slice().try_into().expect(slicde_err_msg)).changed();
+                changed |= egui::color_picker::color_edit_button_rgb(ui, vec3_as_mut_slice(&mut self.b)).changed();
                 ui.end_row();
 
                 ui.label("c:");
-                changed |= egui::color_picker::color_edit_button_rgb(ui, self.c.as_mut_slice().try_into().expect(slicde_err_msg)).changed();
+                changed |= egui::color_picker::color_edit_button_rgb(ui, vec3_as_mut_slice(&mut self.c)).changed();
                 ui.label("d:");
-                changed |= egui::color_picker::color_edit_button_rgb(ui, self.d.as_mut_slice().try_into().expect(slicde_err_msg)).changed();
+                changed |= egui::color_picker::color_edit_button_rgb(ui, vec3_as_mut_slice(&mut self.d)).changed();
                 ui.end_row();
             });
         });
@@ -61,7 +66,7 @@ impl crate::UiWidget for IqGradient {
                 let mut mesh = egui::Mesh::default();
                 for i in 0..=N {
                     let t = i as f32 / (N as f32);
-                    let color: glm::Vec3 = self.evalue(t);
+                    let color: Vec3 = self.evalue(t);
                     let color32 = egui::Color32::from_rgb(
                         ecolor::gamma_u8_from_linear_f32(color[0]),
                         ecolor::gamma_u8_from_linear_f32(color[1]),
@@ -90,28 +95,28 @@ lazy_static! {
         (
             "Grey",
             IqGradient {
-                a: glm::vec3(0.63, 0.63, 0.63),
-                b: glm::vec3(1.0, 1.0, 1.0),
-                c: glm::vec3(0.172, 0.172, 0.172),
-                d: glm::vec3(0.641, 0.641, 0.641),
+                a: Vec3::new(0.63, 0.63, 0.63),
+                b: Vec3::new(1.0, 1.0, 1.0),
+                c: Vec3::new(0.172, 0.172, 0.172),
+                d: Vec3::new(0.641, 0.641, 0.641),
             }
         ),
         (
             "Colorful",
             IqGradient {
-                a: glm::vec3(0.5, 0.5, 0.5),
-                b: glm::vec3(0.5, 0.5, 0.5),
-                c: glm::vec3(1.0, 1.0, 1.0),
-                d: glm::vec3(0.0, 0.33, 0.67),
+                a: Vec3::new(0.5, 0.5, 0.5),
+                b: Vec3::new(0.5, 0.5, 0.5),
+                c: Vec3::new(1.0, 1.0, 1.0),
+                d: Vec3::new(0.0, 0.33, 0.67),
             }
         ),
         (
             "BlueAndSand",
             IqGradient {
-                a: glm::vec3(0.091, 0.363, 0.406),
-                b: glm::vec3(0.405, 0.242, 0.363),
-                c: glm::vec3(0.314, 0.304, 0.243),
-                d: glm::vec3(0.697, 0.707, 1.0),
+                a: Vec3::new(0.091, 0.363, 0.406),
+                b: Vec3::new(0.405, 0.242, 0.363),
+                c: Vec3::new(0.314, 0.304, 0.243),
+                d: Vec3::new(0.697, 0.707, 1.0),
             }
         ),
     ]);

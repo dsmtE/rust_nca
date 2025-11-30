@@ -1,12 +1,11 @@
-#[cfg(feature = "nalgebra")]
-pub struct DisplayableVec2(nalgebra_glm::Vec2);
+use glam::Vec2;
 
-#[cfg(feature = "nalgebra")]
+pub struct DisplayableVec2(Vec2);
+
 impl DisplayableVec2 {
-    pub fn new(vec: nalgebra_glm::Vec2) -> Self { Self(vec) }
+    pub fn new(vec: Vec2) -> Self { Self(vec) }
 }
 
-#[cfg(feature = "nalgebra")]
 impl egui::Widget for &mut DisplayableVec2 {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         ui.horizontal(|ui| {
@@ -35,13 +34,11 @@ impl egui::Widget for &mut DisplayableVec2 {
     }
 }
 
-#[cfg(feature = "nalgebra")]
 impl std::ops::Deref for DisplayableVec2 {
-    type Target = nalgebra_glm::Vec2;
+    type Target = Vec2;
     fn deref(&self) -> &Self::Target { &self.0 }
 }
 
-#[cfg(feature = "nalgebra")]
 impl std::ops::DerefMut for DisplayableVec2 {
     fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
 }
