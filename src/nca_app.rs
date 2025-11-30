@@ -15,12 +15,14 @@ use std::{
     time::{Duration, Instant},
 };
 
-use egui_widgets::{nalgebra_helpers::DisplayableVec2, CodeEditor, IqGradient, UiWidget, IQ_GRADIENT_PRESETS};
-use oxyde::{App, AppState, wgpu_utils::PingPongTexture};
+use egui_widgets::{glam_helpers::DisplayableVec2, CodeEditor, IqGradient, UiWidget, IQ_GRADIENT_PRESETS};
+use oxyde::app::{App, AppState};
+use oxyde::wgpu_utils::PingPongTexture;
+
+use glam::Vec2;
 
 use serde::{Deserialize, Serialize};
 
-use nalgebra_glm as glm;
 
 use pipeline_helpers::{
     build_init_simulation_pipeline,
@@ -34,7 +36,7 @@ use preset::{Preset, PRESETS};
 use simulation_data::{InitSimulationData, KernelSymmetryMode, SimulationData};
 use view_data::ViewData;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Viewport {
     pub x: f32,
     pub y: f32,
@@ -110,7 +112,7 @@ impl NcaApp {
     pub fn load_preset_from_file<P: AsRef<Path>>(&mut self, filepath: &P) -> Result<()> { self.load_preset(preset::load_preset(filepath)?) }
 
     pub fn load_preset(&mut self, preset: Preset) -> Result<()> {
-        self.simulation_data.uniform.set_kernel(preset.kernel);
+        self.simulation_data.uniform.set_kernel_from_slice(preset.kernel);
         self.simulation_data.need_update = true;
 
         self.activation_code = preset.activation_code;
@@ -126,7 +128,7 @@ impl NcaApp {
 
     pub fn save_preset<P: AsRef<Path>>(&self, filepath: &P) -> std::io::Result<()> {
         let current_preset = Preset {
-            kernel: self.simulation_data.uniform.get_kernel(),
+            kernel: self.simulation_data.uniform.get_kernel_as_slice(),
             activation_code: self.activation_code.clone(),
             display_frames_mode: self.display_frames_mode.clone(),
             gradient: self.view_data.uniform.gradient.clone(),
@@ -232,40 +234,62 @@ impl NcaApp {
     }
 
     fn randomise_kernel(&mut self) {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let range: std::ops::Range<f32> = self.kernel_rand_range.x..self.kernel_rand_range.y;
+
+        //define lamdba to get random value with given range
+        let mut get_random_value = || rng.random_range(range.clone());
         match self.kernel_symmetry_mode {
             KernelSymmetryMode::Any =>
-                for i in 0..9 {
+                for i in 0..3 {
+                    for j in 0..3 {
                     self.simulation_data
                         .uniform
-                        .set_kernel_at(i, rng.gen_range(range.clone()), KernelSymmetryMode::Any);
+                        .set_kernel_at(i, j, get_random_value());
+                    }
                 },
             KernelSymmetryMode::Vertical => {
-                for i in 0..6 {
-                    self.simulation_data
-                        .uniform
-                        .set_kernel_at((i % 3) * 3 + i / 3, rng.gen_range(range.clone()), KernelSymmetryMode::Any);
-                }
-                self.simulation_data.uniform.apply_symmetry(KernelSymmetryMode::Vertical);
-            },
-            KernelSymmetryMode::Horizontal => {
-                for i in 0..6 {
-                    self.simulation_data
-                        .uniform
-                        .set_kernel_at(i, rng.gen_range(range.clone()), KernelSymmetryMode::Any);
-                }
-                self.simulation_data.uniform.apply_symmetry(KernelSymmetryMode::Horizontal);
-            },
-            KernelSymmetryMode::Full => {
-                for i in 0..2 {
+                for i in 0..3 {
                     for j in 0..2 {
                         self.simulation_data
                             .uniform
-                            .set_kernel_at(j * 3 + i, rng.gen_range(range.clone()), KernelSymmetryMode::Any);
+                            .set_kernel_at(i , j, get_random_value());
+                        if j == 0 {
+                            self.simulation_data
+                                .uniform
+                                .set_kernel_at(i, 2 - j, self.simulation_data.uniform.get_kernel_at(i, j));
+                        }
                     }
                 }
-                self.simulation_data.uniform.apply_symmetry(KernelSymmetryMode::Full);
+            },
+            KernelSymmetryMode::Horizontal => {
+                for j in 0..3 {
+                    for i in 0..2 {
+                        self.simulation_data
+                            .uniform
+                            .set_kernel_at(i , j, get_random_value());
+                        if i == 0 {
+                            self.simulation_data
+                                .uniform
+                                .set_kernel_at(2 - i, j, self.simulation_data.uniform.get_kernel_at(i, j));
+                        }
+                    }
+                }
+            },
+            KernelSymmetryMode::Full => {
+                self.simulation_data.uniform.set_kernel_at(1 , 1, get_random_value());
+                let corner_value = get_random_value();
+                let edge_value = get_random_value();
+                self.simulation_data.uniform.set_kernel_at(0 , 0, corner_value);
+                self.simulation_data.uniform.set_kernel_at(0 , 2, corner_value);
+                self.simulation_data.uniform.set_kernel_at(2 , 0, corner_value);
+                self.simulation_data.uniform.set_kernel_at(2 , 2, corner_value);
+
+                self.simulation_data.uniform.set_kernel_at(0 , 1, edge_value);
+                self.simulation_data.uniform.set_kernel_at(1 , 0, edge_value);
+                self.simulation_data.uniform.set_kernel_at(1 , 2, edge_value);
+                self.simulation_data.uniform.set_kernel_at(2 , 1, edge_value);
+
             },
         }
         self.simulation_data.need_update = true;
@@ -282,31 +306,34 @@ impl App for NcaApp {
         let simulation_size: [u32; 2] = [512, 512];
         // Texture
         let texture_desc = get_texture_descriptor(&simulation_size);
+        
+        let surface_handle = &_app_state.surface_handle;
+        let mut device = &mut _app_state.render_instance.devices[surface_handle.device_handle_id].device;
 
-        let init_simulation_data = InitSimulationData::new(&_app_state.device);
+        let init_simulation_data = InitSimulationData::new(&device);
 
-        let mut simulation_data = SimulationData::new(&_app_state.device, &simulation_size);
-        simulation_data.uniform.set_kernel(default_preset.kernel);
+        let mut simulation_data = SimulationData::new(&device, &simulation_size);
+        simulation_data.uniform.set_kernel_from_slice(default_preset.kernel);
         simulation_data.need_update = true;
 
-        let view_data = ViewData::new(&_app_state.device);
+        let view_data = ViewData::new(&device);
 
         let (simulation_textures, bind_group_display_ping, bind_group_display_pong, bind_group_simulation_ping, bind_group_simulation_pong) =
-            get_simulation_textures_and_bind_groups(&mut _app_state.device, &texture_desc).expect("");
+            get_simulation_textures_and_bind_groups(&mut device, &texture_desc).expect("");
 
         // Shaders
-        let screen_shader = _app_state.device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        let screen_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Screne Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shaders/Screen.wgsl").into()),
         });
 
         let shader_code: String = generate_simulation_shader(&activation_code);
-        let simulation_shader = _app_state.device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        let simulation_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Simulation Shader"),
             source: wgpu::ShaderSource::Wgsl(shader_code.into()),
         });
 
-        let init_simulation_shader = _app_state.device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        let init_simulation_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Init Simulation Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shaders/init_simulation.wgsl").into()),
         });
@@ -324,8 +351,8 @@ impl App for NcaApp {
         let multisample_state = wgpu::MultisampleState::default();
 
         let screen_render_pipeline = build_screen_pipeline(
-            &mut _app_state.device,
-            &_app_state.config,
+            device,
+            &surface_handle.config,
             &primitive_state,
             &multisample_state,
             &screen_shader,
@@ -334,8 +361,8 @@ impl App for NcaApp {
         );
 
         let init_simulation_render_pipeline = build_init_simulation_pipeline(
-            &mut _app_state.device,
-            &_app_state.config,
+            device,
+            &surface_handle.config,
             &primitive_state,
             &multisample_state,
             &screen_shader,
@@ -344,8 +371,8 @@ impl App for NcaApp {
         );
 
         let simulation_render_pipeline = build_simulation_pipeline(
-            &mut _app_state.device,
-            &_app_state.config,
+            device,
+            &surface_handle.config,
             &primitive_state,
             &multisample_state,
             &screen_shader,
@@ -353,6 +380,17 @@ impl App for NcaApp {
             &simulation_textures,
             &simulation_data,
         );
+
+        let window_scale_factor = _app_state.window.scale_factor() as f32;
+
+        let ui_central_viewport = Viewport {
+            x: 0.0,
+            y: 0.0,
+            width: size.width as f32 / window_scale_factor,
+            height: size.height as f32 /window_scale_factor,
+            min_depth: 0.0,
+            max_depth: 1.0,
+        };
 
         Self {
             clear_color: wgpu::Color { r: 0.1, g: 0.2, b: 0.3, a: 1.0 },
@@ -371,20 +409,13 @@ impl App for NcaApp {
             simulation_data,
             init: false,
             reset_on_randomize: true,
-            kernel_rand_range: DisplayableVec2::new(glm::vec2(-1.0, 1.0)),
+            kernel_rand_range: DisplayableVec2::new(Vec2::new(-1.0, 1.0)),
             bind_group_display_ping,
             bind_group_display_pong,
             bind_group_simulation_ping,
             bind_group_simulation_pong,
 
-            ui_central_viewport: Viewport {
-                x: 0.0,
-                y: 0.0,
-                width: size.width as f32,
-                height: size.height as f32,
-                min_depth: 0.0,
-                max_depth: 1.0,
-            },
+            ui_central_viewport,
 
             target_delta: Duration::from_secs_f64(1.0 / 30.0),
             last_simulation_end: Instant::now(),
@@ -397,7 +428,7 @@ impl App for NcaApp {
         }
     }
 
-    fn handle_event(&mut self, _app_state: &mut AppState, _event: &Event<()>) -> Result<()> {
+    fn handle_event<T: 'static>(&mut self, _app_state: &mut AppState, _event: &Event<T>) -> Result<()> {
         match _event {
             Event::WindowEvent { ref event, .. } => match event {
                 WindowEvent::CursorMoved { .. } => {
@@ -407,9 +438,9 @@ impl App for NcaApp {
 
                         let mouse_delta = _app_state.input_state.mouse.position_delta;
 
-                        let viewport_size = glm::vec2(self.ui_central_viewport.width, self.ui_central_viewport.height) * window_scale_factor;
+                        let viewport_size = Vec2::new(self.ui_central_viewport.width, self.ui_central_viewport.height) * window_scale_factor;
 
-                        let normalized_mouse_delta = mouse_delta.zip_map(&viewport_size, |md, vs| md / vs);
+                        let normalized_mouse_delta = mouse_delta / viewport_size;
 
                         // Shifting using the normalized mouse_delta, scaled using the zoom_level and constrained by the borders (depending on the zoom_level)
                         self.view_data.uniform.center = (self.view_data.uniform.center - normalized_mouse_delta * zoom_level).map(|x| x.min(1. - 0.5 * zoom_level).max(0.5 * zoom_level));
@@ -423,25 +454,33 @@ impl App for NcaApp {
                     let window_scale_factor = _app_state.window.scale_factor() as f32;
 
                     let mouse_pos = &_app_state.input_state.mouse.position;
-                    let viewport_min_position = glm::vec2(self.ui_central_viewport.x, self.ui_central_viewport.y) * window_scale_factor;
-                    let viewport_size = glm::vec2(self.ui_central_viewport.width, self.ui_central_viewport.height) * window_scale_factor;
-                    let normalized_mouse_pos_within_viewport = (*mouse_pos - viewport_min_position).zip_map(&viewport_size, |y, x| y / x);
-                    // let mouse_pos_within_simulation = self.view_data.uniform.center + (normalized_mouse_pos_within_viewport - glm::vec2(0.5, 0.5)) * self.view_data.uniform.zoom_level;
+                    let viewport_min_position = Vec2::new(self.ui_central_viewport.x, self.ui_central_viewport.y) * window_scale_factor;
+                    let viewport_size = Vec2::new(self.ui_central_viewport.width, self.ui_central_viewport.height) * window_scale_factor;
+                    let normalized_mouse_pos_within_viewport = (*mouse_pos - viewport_min_position) / viewport_size;
+                    // let mouse_pos_within_simulation = self.view_data.uniform.center + (normalized_mouse_pos_within_viewport - Vec2::new(0.5, 0.5)) * self.view_data.uniform.zoom_level;
 
                     let old_zoom_level = self.view_data.uniform.zoom_level;
                     self.view_data.uniform.zoom_level = (self.view_data.uniform.zoom_level * ZOOM_SENSITIVITY.powf(-*y)).min(1.0);
 
                     let zoom_delta = old_zoom_level - self.view_data.uniform.zoom_level;
                     if *y > 0. {
-                        self.view_data.uniform.center += (normalized_mouse_pos_within_viewport - glm::vec2(0.5, 0.5)) * zoom_delta;
+                        self.view_data.uniform.center += (normalized_mouse_pos_within_viewport - Vec2::new(0.5, 0.5)) * zoom_delta;
                     } else {
                         if old_zoom_level != 1.0 {
                             self.view_data.uniform.center +=
-                                (glm::vec2(0.5, 0.5) - self.view_data.uniform.center) / (old_zoom_level - 1.0) * zoom_delta;
+                                (Vec2::new(0.5, 0.5) - self.view_data.uniform.center) / (old_zoom_level - 1.0) * zoom_delta;
                         }
                     }
 
                     self.view_data.need_update = true;
+                },
+
+                WindowEvent::Resized(size) => {
+                    let window_scale_factor = _app_state.window.scale_factor() as f32;
+                    self.ui_central_viewport.width = size.width as f32 / window_scale_factor;
+                    self.ui_central_viewport.height = size.height as f32 / window_scale_factor;
+                    self.ui_central_viewport.x = 0.0;
+                    self.ui_central_viewport.y = 0.0;
                 },
                 _ => {},
             },
@@ -451,8 +490,9 @@ impl App for NcaApp {
         Ok(())
     }
 
-    fn render_gui(&mut self, _ctx: &oxyde::egui::Context) -> Result<()> {
-        egui::TopBottomPanel::top("top_panel").resizable(true).show(&_ctx, |ui| {
+    fn render_gui(&mut self, app_state: &mut AppState) -> Result<()> {
+        let ctx = app_state.egui_renderer.context();
+        egui::TopBottomPanel::top("top_panel").resizable(true).show(&ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
                     if ui.button("Open").clicked() {
@@ -499,7 +539,7 @@ impl App for NcaApp {
             });
         });
 
-        egui::SidePanel::left("left_panel").resizable(true).show(&_ctx, |ui| {
+        egui::SidePanel::left("left_panel").resizable(true).show(&ctx, |ui| {
             ui.heading("Left Panel");
 
             egui::CollapsingHeader::new("Simulation settings").default_open(true).show(ui, |ui| {
@@ -595,10 +635,10 @@ impl App for NcaApp {
                             ui.add(
                                 egui::DragValue::from_get_set(|optional_value: Option<f64>| {
                                     if let Some(v) = optional_value {
-                                        self.simulation_data.uniform.set_kernel_at(j * 3 + i, v as f32, self.kernel_symmetry_mode);
+                                        self.simulation_data.uniform.set_kernel_at_with_symmetry(i, j, v as f32, self.kernel_symmetry_mode);
                                         self.simulation_data.need_update = true;
                                     }
-                                    self.simulation_data.uniform.get_kernel_at(j * 3 + i) as f64
+                                    self.simulation_data.uniform.get_kernel_at(i,j) as f64
                                 })
                                 .speed(0.1),
                             );
@@ -663,7 +703,7 @@ impl App for NcaApp {
                 //     _ => None,
                 // });
 
-                let code_to_paste: Option<String> = _ctx.input(|input_state| {
+                let code_to_paste: Option<String> = ctx.input(|input_state| {
                     input_state.events.iter().find_map(|e| match e {
                         egui::Event::Paste(paste_content) => Some((*paste_content).to_owned()),
                         _ => None,
@@ -757,14 +797,8 @@ impl App for NcaApp {
             ui.allocate_space(ui.available_size());
         });
 
-        egui::TopBottomPanel::bottom("bottom_panel").resizable(true).show(&_ctx, |ui| {
-            ui.heading("Bottom Panel");
-
-            ui.allocate_space(ui.available_size());
-        });
-
-        let center_rect = _ctx.available_rect();
-
+        let center_rect = ctx.available_rect();
+        
         // update ui_central_viewport
         let center_size = center_rect.max - center_rect.min;
         self.ui_central_viewport.x = center_rect.min.x;
@@ -776,8 +810,11 @@ impl App for NcaApp {
     }
 
     fn update(&mut self, _app_state: &mut AppState) -> Result<()> {
+
+        let device = &mut _app_state.render_instance.devices[_app_state.surface_handle.device_handle_id].device;
+        let surface_config = &_app_state.surface_handle.config;
         if let ShaderState::Dirty = self.shader_state {
-            match self.try_generate_simulation_pipeline(&mut _app_state.device, &_app_state.config) {
+            match self.try_generate_simulation_pipeline(device, surface_config) {
                 Err(err) => match err {
                     wgpu::Error::OutOfMemory { .. } => {
                         anyhow::bail!("Shader compilation gpu::Error::OutOfMemory")
@@ -789,7 +826,7 @@ impl App for NcaApp {
         }
 
         if let SimulationSizeState::ToCompile { old, new } = self.simulation_size_state {
-            match self.try_update_simulation_size(new, &mut _app_state.device, &_app_state.config) {
+            match self.try_update_simulation_size(new, device, surface_config) {
                 Err(err) => {
                     // Reset to dirty state
                     self.simulation_size_state = SimulationSizeState::Dirty { old, new };
@@ -811,19 +848,21 @@ impl App for NcaApp {
         &mut self,
         _app_state: &mut AppState,
         _output_view: &wgpu::TextureView,
-    ) -> Result<(), wgpu::SurfaceError> {
+    ) -> Result<(), anyhow::Error> {
 
-        let mut encoder = _app_state
-                    .device
+        let device_handle = &mut _app_state.render_instance.devices[_app_state.surface_handle.device_handle_id];
+
+        let mut encoder = device_handle.device
                     .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("encoder") });
 
+        
         if self.last_simulation_end.elapsed() > self.target_delta {
             // init if needed
             if self.init == false {
                 self.init = true;
 
                 if self.init_simulation_data.need_update {
-                    self.init_simulation_data.update(&_app_state.queue);
+                    self.init_simulation_data.update(&device_handle.queue);
                 }
                 
                 
@@ -835,11 +874,13 @@ impl App for NcaApp {
                             resolve_target: None,
                             ops: wgpu::Operations {
                                 load: wgpu::LoadOp::Clear(self.clear_color),
-                                store: true,
+                                store: wgpu::StoreOp::Store,
                             },
                         })
                     ],
                     depth_stencil_attachment: None,
+                    timestamp_writes: None, 
+                    occlusion_query_set: None,
                 });
 
                 init_simulation_render_pass.set_pipeline(&self.init_simulation_render_pipeline);
@@ -850,7 +891,7 @@ impl App for NcaApp {
             // simulation
             {
                 if self.simulation_data.need_update {
-                    self.simulation_data.update(&_app_state.queue);
+                    self.simulation_data.update(&device_handle.queue);
                 }
 
                 let mut simulation_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -861,11 +902,13 @@ impl App for NcaApp {
                             resolve_target: None,
                             ops: wgpu::Operations {
                                 load: wgpu::LoadOp::Clear(self.clear_color),
-                                store: true,
+                                store: wgpu::StoreOp::Store,
                             },
                         })
                     ],
                     depth_stencil_attachment: None,
+                    timestamp_writes: None, 
+                    occlusion_query_set: None,
                 });
 
                 simulation_render_pass.set_pipeline(&self.simulation_render_pipeline);
@@ -883,10 +926,11 @@ impl App for NcaApp {
             self.simulation_textures.toogle_state();
         };
 
+
         // render simulation on screen
         {
             if self.view_data.need_update {
-                self.view_data.update(&_app_state.queue);
+                self.view_data.update(&device_handle.queue);
             }
 
             let mut screen_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -896,10 +940,12 @@ impl App for NcaApp {
                     Some(wgpu::RenderPassColorAttachment {
                         view: &_output_view,
                         resolve_target: None,
-                        ops: wgpu::Operations { load: wgpu::LoadOp::Load, store: true },
+                        ops: wgpu::Operations { load: wgpu::LoadOp::Load, store: wgpu::StoreOp::Store },
                     }),
                 ],
                 depth_stencil_attachment: None,
+                timestamp_writes: None, 
+                occlusion_query_set: None,
             });
 
             // update viewport accordingly to the Ui to display the simulation
@@ -933,7 +979,7 @@ impl App for NcaApp {
             screen_render_pass.draw(0..3, 0..1);
         }
 
-        _app_state.queue.submit(Some(encoder.finish()));
+        device_handle.queue.submit(Some(encoder.finish()));
 
         Ok(())
     }
