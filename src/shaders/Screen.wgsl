@@ -42,7 +42,7 @@ fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
 @group(1) @binding(0) var<uniform> view_parameters: ViewParameters;
 
 @fragment
-fn fs_main(in: VertexOutput) -> @location(1) vec4<f32> {
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let flipped_Center = vec2<f32>(view_parameters.center.x, 1.0-view_parameters.center.y);
     var uv = (in.uv - 0.5) * view_parameters.zoom_level + 0.5 + (flipped_Center - 0.5);
     let sample: vec4<f32> = textureSample(simulation_texture, simulation_tex_sampler, uv);

@@ -3,7 +3,7 @@ extern crate lazy_static;
 
 mod code_editor;
 mod iq_gradiant;
-pub mod nalgebra_helpers;
+pub mod glam_helpers;
 mod syntax_highlighting;
 
 /// Something to view

@@ -1,14 +1,16 @@
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use crevice::std140::AsStd140;
+use glam::{Vec2, Mat3};
 
 use oxyde::wgpu as wgpu;
 
 use wgpu::util::DeviceExt;
 #[repr(C)]
-#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Debug, Copy, Clone, AsStd140)]
 pub struct SimulationUniforms {
-    pixel_size: [f32; 2],
-    kernel: [f32; 9],
+    pixel_size: Vec2,
+    kernel: Mat3,
 }
 
 #[derive(Deserialize, Serialize, Debug, Copy, Clone, PartialEq)]
@@ -34,21 +36,30 @@ impl std::fmt::Display for KernelSymmetryMode {
 impl SimulationUniforms {
     pub fn new(simulation_size: &[u32; 2]) -> Self {
         Self {
-            pixel_size: simulation_size.map(|x| 1.0 / x as f32),
-            kernel: [1.0, 1.0, 1.0, 1.0, 9.0, 1.0, 1.0, 1.0, 1.0],
+            pixel_size: Vec2::from_slice(&simulation_size.map(|x| 1.0 / x as f32)),
+            kernel: Mat3::from_cols_array(&[1.0, 1.0, 1.0, 1.0, 9.0, 1.0, 1.0, 1.0, 1.0]),
         }
     }
 
-    pub fn set_kernel_at(&mut self, index: usize, value: f32, mode: KernelSymmetryMode) {
-        self.kernel[index] = value;
-        self.apply_symmetry_at(index, mode);
+    // row-major order (with transpose)
+    pub fn get_kernel_as_slice(&self) -> [f32; 9] { self.kernel.transpose().to_cols_array() }
+
+    pub fn get_kernel_at(&self, col: usize, row: usize) -> f32 { self.kernel.col(col)[row] }
+    pub fn get_kernel_at_mut(&mut self, col: usize, row: usize) -> &mut f32 { &mut self.kernel.col_mut(col)[row] }
+
+    pub fn set_kernel_at(&mut self, col: usize, row: usize, value: f32) {
+        *self.get_kernel_at_mut(col, row) = value;
     }
 
-    pub fn get_kernel_at(&self, index: usize) -> f32 { self.kernel[index] }
+    pub fn set_kernel_from_slice(&mut self, new_kernel: [f32; 9]) {
+        self.kernel = Mat3::from_cols_slice(&new_kernel);
+    }
 
-    pub fn get_kernel(&self) -> [f32; 9] { self.kernel.clone() }
+    pub fn set_kernel_at_with_symmetry(&mut self, col: usize, row: usize, value: f32, mode: KernelSymmetryMode) {
+        self.set_kernel_at(col, row, value);
+        self.apply_symmetry_at(col, row, mode);
+    }
 
-    pub fn set_kernel(&mut self, new_kernel: [f32; 9]) { self.kernel[0..9].copy_from_slice(&new_kernel); }
 
     pub fn apply_symmetry(&mut self, mode: KernelSymmetryMode) {
         const N: usize = 3;
@@ -57,15 +68,15 @@ impl SimulationUniforms {
         match mode {
             KernelSymmetryMode::Any => (),
             KernelSymmetryMode::Vertical =>
-                for i in 0..HALF_IDX {
-                    for j in 0..N {
-                        self.kernel[j * N + (N - 1 - i % N)] = self.kernel[j * N + i];
+                for row in 0..N {
+                    for col in 0..HALF_IDX {
+                        self.set_kernel_at(N - 1 - col, row, self.get_kernel_at(col, row));
                     }
                 },
             KernelSymmetryMode::Horizontal =>
-                for i in 0..N {
-                    for j in 0..HALF_IDX {
-                        self.kernel[(N - 1 - j / N) * N + i] = self.kernel[j * N + i];
+                for col in 0..N {
+                    for row in 0..HALF_IDX {
+                        self.set_kernel_at(col, N - 1 - row, self.get_kernel_at(col, row));
                     }
                 },
             KernelSymmetryMode::Full => {
@@ -75,44 +86,34 @@ impl SimulationUniforms {
         }
     }
 
-    fn apply_symmetry_at(&mut self, index: usize, mode: KernelSymmetryMode) {
+    fn apply_symmetry_at(&mut self, col: usize, row: usize, mode: KernelSymmetryMode) {
         const N: usize = 3;
         const HALF_IDX: usize = (N + 1) / 2 - 1;
 
-        if index == HALF_IDX * N + HALF_IDX {
-            return;
-        } // center
+        if row == HALF_IDX && col == HALF_IDX { return; } // center 
 
+        let value = self.get_kernel_at(col, row);
         match mode {
             KernelSymmetryMode::Any => (),
-            KernelSymmetryMode::Vertical =>
-                if index % N != HALF_IDX {
-                    self.kernel[vertical_symmetry_idx(index)] = self.kernel[index];
-                },
+            KernelSymmetryMode::Vertical => 
+            if col != HALF_IDX {
+                *self.get_kernel_at_mut(N - 1 - col, row) = value
+            }
             KernelSymmetryMode::Horizontal =>
-                if index / N != HALF_IDX {
-                    self.kernel[horizontal_symmetry_idx(index)] = self.kernel[index];
-                },
+            if row != HALF_IDX {
+                *self.get_kernel_at_mut(col, N - 1 - row) = value
+            },
             KernelSymmetryMode::Full => {
-                self.kernel[vertical_symmetry_idx(index)] = self.kernel[index];
-                self.kernel[horizontal_symmetry_idx(index)] = self.kernel[index];
-                self.kernel[vertical_symmetry_idx(horizontal_symmetry_idx(index))] = self.kernel[index];
+                
+                *self.get_kernel_at_mut(col, N - 1 - row) = value;
+                *self.get_kernel_at_mut(N - 1 - col, row) = value;
+                *self.get_kernel_at_mut(N - 1 - col, N - 1 - row) = value;
 
-                // Apply symmetry on rotated index
-                let rotated_idx = rot_anticlockwise_idx(index);
-                self.kernel[rotated_idx] = self.kernel[index];
-                self.kernel[vertical_symmetry_idx(rotated_idx)] = self.kernel[rotated_idx];
-                self.kernel[horizontal_symmetry_idx(rotated_idx)] = self.kernel[rotated_idx];
-                self.kernel[vertical_symmetry_idx(horizontal_symmetry_idx(rotated_idx))] = self.kernel[rotated_idx];
+                *self.get_kernel_at_mut(row, col) = value;
+                *self.get_kernel_at_mut(N - 1 - row, col) = value;
+                *self.get_kernel_at_mut(row, N - 1 - col) = value;
             },
         }
-
-        #[inline(always)]
-        fn vertical_symmetry_idx(i: usize) -> usize { (i / N) * N + (N - 1 - i % N) }
-        #[inline(always)]
-        fn horizontal_symmetry_idx(i: usize) -> usize { (N - 1 - i / N) * N + i % N }
-        #[inline(always)]
-        fn rot_anticlockwise_idx(i: usize) -> usize { (N - 1 - i % N) * N + i / N }
     }
 }
 
@@ -126,7 +127,7 @@ pub struct InitSimulationUniforms {
 impl InitSimulationUniforms {
     pub fn new() -> Self {
         Self {
-            seed: rand::thread_rng().gen::<f32>(),
+            seed: rand::rng().random::<f32>(),
             initialisation_mode: 0,
         }
     }
@@ -156,7 +157,7 @@ impl SimulationData {
 
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Simulation uniforms Buffer"),
-            contents: bytemuck::cast_slice(&[uniform]),
+            contents: uniform.as_std140().as_bytes(),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
@@ -193,12 +194,12 @@ impl SimulationData {
     }
 
     pub fn set_simulation_size(&mut self, new_simulation_size: &[u32; 2]) {
-        self.uniform.pixel_size = new_simulation_size.map(|x| 1.0 / x as f32);
+        self.uniform.pixel_size = Vec2::from_slice(&new_simulation_size.map(|x| 1.0 / x as f32));
         self.need_update = true;
     }
 
     pub fn update(&mut self, queue: &wgpu::Queue) {
-        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.uniform]));
+        queue.write_buffer(&self.buffer, 0, self.uniform.as_std140().as_bytes());
         self.need_update = false;
     }
 }

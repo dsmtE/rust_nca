@@ -6,17 +6,19 @@ use super::{
     view_data::ViewData,
 };
 
-pub fn get_texture_descriptor(size: &[u32; 2]) -> wgpu::TextureDescriptor {
+pub fn get_texture_descriptor(size: &[u32; 2]) -> wgpu::TextureDescriptor<'static> {
+    let width = size[0];
+    let height = size[1];
     wgpu::TextureDescriptor {
         size: wgpu::Extent3d {
-            width: size[0],
-            height: size[1],
+            width,
+            height,
             depth_or_array_layers: 1,
         },
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
-        format: wgpu::TextureFormat::Bgra8UnormSrgb,
+        format: wgpu::TextureFormat::Bgra8Unorm,
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
         label: None,
         view_formats: &[wgpu::TextureFormat::Bgra8UnormSrgb],

@@ -1,5 +1,5 @@
 use crevice::std140::AsStd140;
-use nalgebra_glm as glm;
+use glam::Vec2;
 use oxyde::wgpu as wgpu;
 
 use wgpu::util::DeviceExt;
@@ -9,7 +9,7 @@ use egui_widgets::IqGradient;
 #[repr(C)]
 #[derive(Debug, Copy, Clone, AsStd140)]
 pub struct ViewParameters {
-    pub center: glm::Vec2,
+    pub center: Vec2,
     pub zoom_level: f32,
     pub gradient: IqGradient,
 }
@@ -25,7 +25,7 @@ pub struct ViewData {
 impl ViewData {
     pub fn new(device: &wgpu::Device) -> Self {
         let uniform = ViewParameters {
-            center: glm::vec2(0.5, 0.5),
+            center: Vec2::new(0.5, 0.5),
             zoom_level: 1.0,
             gradient: IqGradient::default(),
         };
