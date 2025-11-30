@@ -85,7 +85,6 @@ impl SyntectTheme {
     pub fn is_dark(&self) -> bool {
         match self {
             Self::Base16EightiesDark | Self::Base16MochaDark | Self::Base16OceanDark | Self::SolarizedDark => true,
-
             Self::Base16OceanLight | Self::InspiredGitHub | Self::SolarizedLight => false,
         }
     }
@@ -93,10 +92,7 @@ impl SyntectTheme {
 
 #[derive(Clone, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
 pub struct CodeTheme {
-    dark_mode: bool,
-
     #[cfg(feature = "syntax_highlighting")]
     syntect_theme: SyntectTheme,
 
@@ -104,62 +100,67 @@ pub struct CodeTheme {
     formats: enum_map::EnumMap<TokenType, egui::TextFormat>,
 }
 
-impl Default for CodeTheme {
-    fn default() -> Self { Self::dark() }
-}
-
 impl CodeTheme {
+    fn default(dark_mode: bool) -> Self { CodeTheme{
+        syntect_theme: if dark_mode { SyntectTheme::Base16MochaDark } else { SyntectTheme::SolarizedLight } 
+    }}
+
+    fn internal_id(dark_mode: bool) -> egui::Id {
+        egui::Id::new(format!("code_theme_{:}", if dark_mode { "dark" } else { "light" }))
+    }
+
     pub fn from_memory(ctx: &egui::Context) -> Self {
-
         let dark_mode = ctx.style().visuals.dark_mode;
-
         ctx.data_mut(|data| {
-            data.get_persisted(egui::Id::new(if dark_mode { "dark" } else { "light" }))
-                .unwrap_or_else(if dark_mode { CodeTheme::dark } else { CodeTheme::light })
+            data.get_persisted(Self::internal_id(dark_mode)).unwrap_or(Self::default(dark_mode))
         })
     }
 
     pub fn store_in_memory(self, ctx: &egui::Context) {
+        let dark_mode = ctx.style().visuals.dark_mode;
         ctx.data_mut(|data| {
-            data.insert_persisted(egui::Id::new(if self.dark_mode { "dark" } else { "light" }), self);
+            data.insert_persisted(Self::internal_id(dark_mode), self);
         });
     }
 }
 
 #[cfg(feature = "syntax_highlighting")]
 impl CodeTheme {
-    pub fn dark() -> Self {
-        Self {
-            dark_mode: true,
-            syntect_theme: SyntectTheme::Base16MochaDark,
-        }
-    }
+    pub fn ui(&mut self, label: &str, ui: &mut egui::Ui) -> Option<egui::Response> {
+        let dark_mode = ui.ctx().style().visuals.dark_mode;
 
-    pub fn light() -> Self {
-        Self {
-            dark_mode: false,
-            syntect_theme: SyntectTheme::SolarizedLight,
-        }
-    }
+        ui.menu_button(label, |ui| {
+            SyntectTheme::all()
+            .filter(|theme| theme.is_dark() == dark_mode)
+            .map(|theme| {
+                ui.selectable_value(&mut self.syntect_theme, theme, theme.name())
+            })
+            .reduce(|acc, e| acc.union(e)).unwrap()
+        }).inner
 
-    pub fn ui(&mut self, ui: &mut egui::Ui) {
-        egui::widgets::global_dark_light_mode_buttons(ui);
-
-        for theme in SyntectTheme::all() {
-            if theme.is_dark() == self.dark_mode {
-                ui.radio_value(&mut self.syntect_theme, theme, theme.name());
-            }
-        }
+        // egui::ComboBox::from_id_source("CodeTheme")
+        // .selected_text(self.syntect_theme.name())
+        // .show_ui(ui, |ui| {
+        //     SyntectTheme::all()
+        //     .filter(|theme| theme.is_dark() == dark_mode)
+        //     .map(|theme| {
+        //         ui.selectable_value(&mut self.syntect_theme, theme, theme.name())
+        //     })
+        //     .reduce(|acc, e| acc.union(e)).unwrap()
+        // }).inner
     }
 }
 
 #[cfg(not(feature = "syntax_highlighting"))]
 impl CodeTheme {
+    fn default(dark_mode: bool) -> Self { CodeTheme{
+        syntect_theme: if dark_mode { self::dark() } else { self::light() } 
+    }}
+
     pub fn dark() -> Self {
         let font_id = egui::FontId::monospace(12.0);
         use egui::{Color32, TextFormat};
         Self {
-            dark_mode: true,
             formats: enum_map::enum_map![
                 TokenType::Comment => TextFormat::simple(font_id.clone(), Color32::from_gray(120)),
                 TokenType::Keyword => TextFormat::simple(font_id.clone(), Color32::from_rgb(255, 100, 100)),
@@ -270,11 +271,7 @@ impl Highlighter {
             LayoutJob::simple(
                 code.into(),
                 egui::FontId::monospace(14.0),
-                if theme.dark_mode {
-                    egui::Color32::LIGHT_GRAY
-                } else {
-                    egui::Color32::DARK_GRAY
-                },
+                egui::Color32::LIGHT_GRAY,
                 f32::INFINITY,
             )
         })

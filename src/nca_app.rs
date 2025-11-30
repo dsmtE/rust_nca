@@ -233,7 +233,7 @@ impl NcaApp {
         Ok(())
     }
 
-    fn randomise_kernel(&mut self) {
+    fn randomize_kernel(&mut self) {
         let mut rng = rand::rng();
         let range: std::ops::Range<f32> = self.kernel_rand_range.x..self.kernel_rand_range.y;
 
@@ -492,10 +492,11 @@ impl App for NcaApp {
 
     fn render_gui(&mut self, app_state: &mut AppState) -> Result<()> {
         let ctx = app_state.egui_renderer.context();
+
         egui::TopBottomPanel::top("top_panel").resizable(true).show(&ctx, |ui| {
             egui::menu::bar(ui, |ui| {
-                ui.menu_button("File", |ui| {
-                    if ui.button("Open").clicked() {
+                ui.menu_button("Simulation Presets", |ui| {
+                    if ui.button("Load from file").clicked() {
                         match nfd2::open_file_dialog(Some("json"), None).expect("Unable to open the file") {
                             nfd2::Response::Okay(file_path) => {
                                 let path: &Path = file_path.as_path();
@@ -507,7 +508,7 @@ impl App for NcaApp {
                             nfd2::Response::Cancel => (),
                         }
                     }
-                    if ui.button("Save").clicked() {
+                    if ui.button("Save to file").clicked() {
                         match nfd2::open_save_dialog(Some("json"), None).expect("Unable to save the file") {
                             nfd2::Response::Okay(file_path) => {
                                 let path: &Path = file_path.as_path();
@@ -519,9 +520,8 @@ impl App for NcaApp {
                             nfd2::Response::Cancel => (),
                         }
                     }
-                });
-                ui.menu_button("Preset", |ui| {
-                    egui::ScrollArea::vertical().show(ui, |ui| {
+
+                    ui.menu_button("Load from default preset", |ui| {
                         let mut preset_to_apply: Option<(&'static str, Preset)> = None;
                         for (name, preset) in PRESETS.iter() {
                             if ui.button(*name).clicked() {
@@ -536,13 +536,36 @@ impl App for NcaApp {
                         }
                     });
                 });
+
+                ui.menu_button("Style Options", |ui| {
+                    egui::widgets::global_dark_light_mode_buttons(ui);
+                    // TODO: Make the code editor a field of the NcaApp struct instead of recreating it each frame (deal with mutability and lifetime issues)
+                        let mut code_editor = CodeEditor::new(&mut self.activation_code, "rs", Some(15));
+                        code_editor.show_theme_selector("Code editor theme", ui);
+                });
             });
         });
 
         egui::SidePanel::left("left_panel").resizable(true).show(&ctx, |ui| {
-            ui.heading("Left Panel");
+            egui::CollapsingHeader::new("Simulation").default_open(true).show(ui, |ui| {
+                egui::CollapsingHeader::new("Init").default_open(true).show(ui, |ui| {
+                    if ui.button("Init").clicked() {
+                        self.init = false;
+                    }
 
-            egui::CollapsingHeader::new("Simulation settings").default_open(true).show(ui, |ui| {
+                    ui.add(
+                        egui::DragValue::new(&mut self.init_simulation_data.uniform.seed)
+                        .speed(0.1)
+                        .prefix("seed: "),
+                    );
+                    
+                    ui.menu_button("Initialisation mode", |ui| {
+                        let initialisation_mode = &mut self.init_simulation_data.uniform.initialisation_mode;
+                        use crate::nca_app::simulation_data::initialisation_mode_to_string;
+                        ui.selectable_value(initialisation_mode, 0, initialisation_mode_to_string(0));
+                        ui.selectable_value(initialisation_mode, 1, initialisation_mode_to_string(1));
+                    });
+                });
 
                 if let SimulationSizeState::ToCompile{old, new} = self.simulation_size_state {
                     ui.label(format!("Wait simulation pipeline compilation before changing the simulation size (from {:?} to {:?}).", old, new));
@@ -597,111 +620,101 @@ impl App for NcaApp {
                         }
                     };
                 }
-            });
 
-            egui::CollapsingHeader::new("Starting settings").default_open(true).show(ui, |ui| {
-                ui.separator();
-                ui.add(
-                    egui::DragValue::from_get_set(|optional_value: Option<f64>| {
-                        if let Some(v) = optional_value {
-                            self.init_simulation_data.uniform.seed = v as f32;
-                            self.init_simulation_data.need_update = true;
-                        }
-                        self.init_simulation_data.uniform.seed as f64
-                    })
-                    .speed(0.1)
-                    .prefix("seed: "),
-                );
-
-                if ui.button("randoms float").clicked() {
-                    self.init = false;
-                    self.init_simulation_data.uniform.initialisation_mode = 1;
-                    self.init_simulation_data.need_update = true;
-                }
-
-                if ui.button("randoms ints").clicked() {
-                    self.init = false;
-                    self.init_simulation_data.uniform.initialisation_mode = 0;
-                    self.init_simulation_data.need_update = true;
-                }
-
-                ui.checkbox(&mut self.reset_on_randomize, "reset on randomize");
-            });
-
-            egui::CollapsingHeader::new("Kernel").default_open(true).show(ui, |ui| {
-                egui::Grid::new("some_unique_id").show(ui, |ui| {
-                    for j in 0..3 {
-                        for i in 0..3 {
-                            ui.add(
-                                egui::DragValue::from_get_set(|optional_value: Option<f64>| {
-                                    if let Some(v) = optional_value {
-                                        self.simulation_data.uniform.set_kernel_at_with_symmetry(i, j, v as f32, self.kernel_symmetry_mode);
-                                        self.simulation_data.need_update = true;
-                                    }
-                                    self.simulation_data.uniform.get_kernel_at(i,j) as f64
-                                })
-                                .speed(0.1),
-                            );
-                        }
-                        ui.end_row();
-                    }
-                });
                 ui.horizontal(|ui| {
-                    ui.label("Symmetry mode: ");
-                    egui::ComboBox::from_id_source("Symmetry mode: ")
-                        .selected_text(self.kernel_symmetry_mode.to_string())
-                        .show_ui(ui, |ui| {
-                            let mut changed: bool = false;
-                            changed |= ui
-                                .selectable_value(&mut self.kernel_symmetry_mode, KernelSymmetryMode::Any, KernelSymmetryMode::Any.to_string())
-                                .changed();
-                            changed |= ui
-                                .selectable_value(
-                                    &mut self.kernel_symmetry_mode,
-                                    KernelSymmetryMode::Vertical,
-                                    KernelSymmetryMode::Vertical.to_string(),
-                                )
-                                .changed();
-                            changed |= ui
-                                .selectable_value(
-                                    &mut self.kernel_symmetry_mode,
-                                    KernelSymmetryMode::Horizontal,
-                                    KernelSymmetryMode::Horizontal.to_string(),
-                                )
-                                .changed();
-                            changed |= ui
-                                .selectable_value(&mut self.kernel_symmetry_mode, KernelSymmetryMode::Full, KernelSymmetryMode::Full.to_string())
-                                .changed();
-                            if changed {
-                                self.simulation_data.uniform.apply_symmetry(self.kernel_symmetry_mode);
+                    ui.add(
+                        egui::DragValue::from_get_set(|new_value: Option<f64>| {
+                            if let Some(value) = new_value {
+                                self.target_delta = Duration::from_secs_f64(1.0 / value.max(1.0));
                             }
-                        });
+
+                            1.0 / self.target_delta.as_secs_f64()
+                        })
+                        .speed(1.0)
+                        .min_decimals(1)
+                        .max_decimals(60)
+                        .prefix("Update rate: ")
+                        .suffix(" fps")
+                    );
                 });
 
-                ui.separator();
-                if ui.button("randomise kernel").clicked() {
-                    self.randomise_kernel();
+                egui::CollapsingHeader::new("Kernel")
+                .default_open(true)
+                .show(ui, |ui| {
 
-                    if self.reset_on_randomize {
-                        self.init = false;
+                    egui::Grid::new("kernel grid").show(ui, |ui| {
+                        for j in 0..3 {
+                            for i in 0..3 {
+                                ui.add(
+                                    egui::DragValue::from_get_set(|optional_value: Option<f64>| {
+                                        if let Some(v) = optional_value {
+                                            self.simulation_data.uniform.set_kernel_at_with_symmetry(i, j, v as f32, self.kernel_symmetry_mode);
+                                            self.simulation_data.need_update = true;
+                                        }
+                                        self.simulation_data.uniform.get_kernel_at(i,j) as f64
+                                    })
+                                    .speed(0.1),
+                                );
+                            }
+                            ui.end_row();
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Symmetry mode: ");
+                        egui::ComboBox::from_id_source("Symmetry mode: ")
+                            .selected_text(self.kernel_symmetry_mode.to_string())
+                            .show_ui(ui, |ui| {
+                                let mut changed: bool = false;
+                                changed |= ui
+                                    .selectable_value(&mut self.kernel_symmetry_mode, KernelSymmetryMode::Any, KernelSymmetryMode::Any.to_string())
+                                    .changed();
+                                changed |= ui
+                                    .selectable_value(
+                                        &mut self.kernel_symmetry_mode,
+                                        KernelSymmetryMode::Vertical,
+                                        KernelSymmetryMode::Vertical.to_string(),
+                                    )
+                                    .changed();
+                                changed |= ui
+                                    .selectable_value(
+                                        &mut self.kernel_symmetry_mode,
+                                        KernelSymmetryMode::Horizontal,
+                                        KernelSymmetryMode::Horizontal.to_string(),
+                                    )
+                                    .changed();
+                                changed |= ui
+                                    .selectable_value(&mut self.kernel_symmetry_mode, KernelSymmetryMode::Full, KernelSymmetryMode::Full.to_string())
+                                    .changed();
+                                if changed {
+                                    self.simulation_data.uniform.apply_symmetry(self.kernel_symmetry_mode);
+                                }
+                            });
+                    });
+
+                    ui.checkbox(&mut self.reset_on_randomize, "reset simulation on randomize");
+
+                    if ui.button("randomize").clicked() {
+                        self.randomize_kernel();
+
+                        if self.reset_on_randomize {
+                            self.init = false;
+                        }
                     }
-                }
 
-                ui.horizontal(|ui| {
-                    ui.label("Range: ");
-                    ui.add(&mut self.kernel_rand_range);
+                    ui.indent("", |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label("Range: ");
+                            ui.add(&mut self.kernel_rand_range);
+                        });
+                    });
                 });
-            });
 
-            egui::CollapsingHeader::new("Simulation").default_open(true).show(ui, |ui| {
                 ui.separator();
-                let mut code_editor = CodeEditor::new(&mut self.activation_code, "rs", Some(15));
-                code_editor.show(ui);
 
-                // let code_to_paste: Option<String> = _ctx.input().events.iter().find_map(|e| match e {
-                //     egui::Event::Paste(paste_content) => Some((*paste_content).to_owned()),
-                //     _ => None,
-                // });
+                // TODO
+                let mut code_editor = CodeEditor::new(&mut self.activation_code, "rs", Some(15));
+                
+                code_editor.show(ui);
 
                 let code_to_paste: Option<String> = ctx.input(|input_state| {
                     input_state.events.iter().find_map(|e| match e {
@@ -750,24 +763,6 @@ impl App for NcaApp {
                             ui.selectable_value(&mut self.display_frames_mode, DisplayFramesMode::Evens, "Evens");
                             ui.selectable_value(&mut self.display_frames_mode, DisplayFramesMode::Odd, "Odd");
                         });
-                });
-
-                ui.horizontal(|ui| {
-                    ui.label("Target Simulation rate: ");
-                    ui.add(
-                        egui::DragValue::from_get_set(|new_value: Option<f64>| {
-                            if let Some(value) = new_value {
-                                self.target_delta = Duration::from_secs_f64(1.0 / value.max(1.0));
-                            }
-
-                            1.0 / self.target_delta.as_secs_f64()
-                        })
-                        .speed(1.0)
-                        .min_decimals(1)
-                        .max_decimals(60),
-                    );
-
-                    ui.label(" fps");
                 });
 
                 ui.separator();
@@ -864,7 +859,6 @@ impl App for NcaApp {
                 if self.init_simulation_data.need_update {
                     self.init_simulation_data.update(&device_handle.queue);
                 }
-                
                 
                 let mut init_simulation_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("Init Simulation Render Pass"),

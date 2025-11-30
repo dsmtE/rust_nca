@@ -133,6 +133,14 @@ impl InitSimulationUniforms {
     }
 }
 
+pub fn initialisation_mode_to_string(mode: u32) -> &'static str {
+    match mode {
+        0 => "Random",
+        1 => "Random Integers",
+        _ => "Unknown",
+    }
+}
+
 pub struct SimulationData {
     pub need_update: bool,
     pub uniform: SimulationUniforms,

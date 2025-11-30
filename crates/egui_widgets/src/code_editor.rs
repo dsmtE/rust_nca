@@ -16,14 +16,7 @@ impl<'a> CodeEditor<'a> {
 
 impl<'a> crate::UiWidget for CodeEditor<'a> {
     fn show(&mut self, ui: &mut egui::Ui) -> egui::Response {
-        let mut theme = crate::syntax_highlighting::CodeTheme::from_memory(ui.ctx());
-        ui.collapsing("Theme", |ui| {
-            ui.group(|ui| {
-                theme.ui(ui);
-                theme.clone().store_in_memory(ui.ctx());
-            });
-        });
-
+        let theme = crate::syntax_highlighting::CodeTheme::from_memory(ui.ctx());
         let mut layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
             let mut layout_job = crate::syntax_highlighting::highlight(ui.ctx(), &theme, string, self.language);
             layout_job.wrap.max_width = wrap_width;
@@ -46,5 +39,14 @@ impl<'a> crate::UiWidget for CodeEditor<'a> {
                 )
             })
             .inner
+    }
+}
+
+impl<'a> CodeEditor<'a> {
+    pub fn show_theme_selector(&mut self, label: &str, ui: &mut egui::Ui) -> Option<egui::Response> {
+        let mut theme = crate::syntax_highlighting::CodeTheme::from_memory(ui.ctx());
+        let response = theme.ui(label, ui);
+        theme.clone().store_in_memory(ui.ctx());
+        response
     }
 }
