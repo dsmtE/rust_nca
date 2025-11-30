@@ -1,11 +1,11 @@
 use egui::text::LayoutJob;
 
+impl egui::util::cache::ComputerMut<(&CodeTheme, &str, &str), LayoutJob> for Highlighter {
+    fn compute(&mut self, (theme, code, lang): (&CodeTheme, &str, &str)) -> LayoutJob { self.highlight(theme, code, lang) }
+}
+
 /// Memoized Code highlighting
 pub fn highlight(ctx: &egui::Context, theme: &CodeTheme, code: &str, language: &str) -> LayoutJob {
-    impl egui::util::cache::ComputerMut<(&CodeTheme, &str, &str), LayoutJob> for Highlighter {
-        fn compute(&mut self, (theme, code, lang): (&CodeTheme, &str, &str)) -> LayoutJob { self.highlight(theme, code, lang) }
-    }
-
     type HighlightCache<'a> = egui::util::cache::FrameCache<LayoutJob, Highlighter>;
 
     ctx.memory_mut(|memory| {
@@ -109,14 +109,6 @@ impl Default for CodeTheme {
 }
 
 impl CodeTheme {
-    pub fn from_style(style: &egui::Style) -> Self {
-        if style.visuals.dark_mode {
-            Self::dark()
-        } else {
-            Self::light()
-        }
-    }
-
     pub fn from_memory(ctx: &egui::Context) -> Self {
 
         let dark_mode = ctx.style().visuals.dark_mode;
@@ -199,7 +191,8 @@ impl CodeTheme {
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         ui.horizontal_top(|ui| {
             let selected_id = egui::Id::null();
-            let mut selected_tt: TokenType = *ui.data().get_persisted_mut_or(selected_id, TokenType::Comment);
+            
+            let mut token_type : TokenType = ui.data_mut(|map| *map.get_temp_mut_or(selected_id, TokenType::Comment));
 
             ui.vertical(|ui| {
                 ui.set_width(150.0);
@@ -221,7 +214,7 @@ impl CodeTheme {
                         let format = &mut self.formats[tt];
                         ui.style_mut().override_font_id = Some(format.font_id.clone());
                         ui.visuals_mut().override_text_color = Some(format.color);
-                        ui.radio_value(&mut selected_tt, tt, tt_name);
+                        ui.radio_value(token_type, tt, tt_name);
                     }
                 });
 
@@ -238,13 +231,13 @@ impl CodeTheme {
 
             ui.add_space(16.0);
 
-            ui.data().insert_persisted(selected_id, selected_tt);
+            ui.data_mut(|map| map.insert_temp(selected_id, token_type));
 
-            egui::Frame::group(ui.style()).margin(egui::Vec2::splat(2.0)).show(ui, |ui| {
+            egui::Frame::group(ui.style()).inner_margin(egui::Vec2::splat(2.0)).show(ui, |ui| {
                 // ui.group(|ui| {
                 ui.style_mut().override_text_style = Some(egui::TextStyle::Small);
                 ui.spacing_mut().slider_width = 128.0; // Controls color picker size
-                egui::widgets::color_picker::color_picker_color32(ui, &mut self.formats[selected_tt].color, egui::color_picker::Alpha::Opaque);
+                egui::widgets::color_picker::color_picker_color32(ui, &mut self.formats[*selected_tt].color, egui::color_picker::Alpha::Opaque);
             });
         });
     }
