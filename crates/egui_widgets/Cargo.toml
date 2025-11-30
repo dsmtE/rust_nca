@@ -6,7 +6,7 @@ edition = "2021"
 
 [dependencies]
 
-egui = "0.26"
+egui = "0.33.2"
 ecolor = "0.21"
 
 serde = { version = "1", features = ["derive"], optional = true}

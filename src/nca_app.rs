@@ -811,10 +811,13 @@ impl App for NcaApp {
         if let ShaderState::Dirty = self.shader_state {
             match self.try_generate_simulation_pipeline(device, surface_config) {
                 Err(err) => match err {
-                    wgpu::Error::OutOfMemory { .. } => {
-                        anyhow::bail!("Shader compilation gpu::Error::OutOfMemory")
-                    },
                     wgpu::Error::Validation { description, .. } => self.shader_state = ShaderState::CompilationFail(description),
+                    wgpu::Error::OutOfMemory { source } => {
+                        anyhow::bail!("wgpu::Error::OutOfMemory: {}", source)
+                    },
+                    wgpu::Error::Internal { source, description } => {
+                        anyhow::bail!("Shader compilation gpu::Error::Internal: {} (details: {})", source, description)
+                    }
                 },
                 Ok(()) => {},
             }
@@ -826,10 +829,13 @@ impl App for NcaApp {
                     // Reset to dirty state
                     self.simulation_size_state = SimulationSizeState::Dirty { old, new };
                     match err {
-                        wgpu::Error::OutOfMemory { .. } => {
-                            anyhow::bail!("Shader compilation gpu::Error::OutOfMemory")
-                        },
                         wgpu::Error::Validation { description, .. } => self.shader_state = ShaderState::CompilationFail(description),
+                        wgpu::Error::OutOfMemory { source } => {
+                            anyhow::bail!("wgpu::Error::OutOfMemory: {}", source)
+                        },
+                        wgpu::Error::Internal { source, description } => {
+                            anyhow::bail!("Shader compilation gpu::Error::Internal: {} (details: {})", source, description)
+                        }
                     };
                 }
                 Ok(()) => {},
@@ -870,6 +876,7 @@ impl App for NcaApp {
                                 load: wgpu::LoadOp::Clear(self.clear_color),
                                 store: wgpu::StoreOp::Store,
                             },
+                            depth_slice: None,
                         })
                     ],
                     depth_stencil_attachment: None,
@@ -898,6 +905,7 @@ impl App for NcaApp {
                                 load: wgpu::LoadOp::Clear(self.clear_color),
                                 store: wgpu::StoreOp::Store,
                             },
+                            depth_slice: None,
                         })
                     ],
                     depth_stencil_attachment: None,
@@ -935,6 +943,7 @@ impl App for NcaApp {
                         view: &_output_view,
                         resolve_target: None,
                         ops: wgpu::Operations { load: wgpu::LoadOp::Load, store: wgpu::StoreOp::Store },
+                        depth_slice: None,
                     }),
                 ],
                 depth_stencil_attachment: None,

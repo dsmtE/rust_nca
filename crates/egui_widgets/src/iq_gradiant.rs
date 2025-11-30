@@ -83,7 +83,7 @@ impl crate::UiWidget for IqGradient {
                 ui.painter().add(egui::Shape::mesh(mesh));
             }
 
-            ui.painter().rect_stroke(rect, 0.0, visuals.bg_stroke); // outline
+            ui.painter().rect_stroke(rect, 0.0, visuals.bg_stroke, egui::StrokeKind::Outside); // outline
         }
 
         response.on_hover_text("computed from the formula:\ncolor(t) = a + b.cos(2π(c.t+d))")

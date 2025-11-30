@@ -25,7 +25,6 @@ crevice = { version = "0.18.0", features = ["glam"] }
 nfd2 = "0.3"
 
 lazy_static = "1"
-pollster = "0.4.0"
 
 # Overriding repository URL to work with git submodules
 [patch."https://github.com/dsmtE/oxyde"]
